@@ -45,13 +45,6 @@ Tuner runs on linux and depends on:
 ## Usage
 
 ```
-python tuner_vX_Y.py
+chmod +x tuner.py
+tuner.py
 ```
-
-or
-
-```
-chmod +x tuner_vX_Y.py
-./tuner_vX_Y.py
-```
-
