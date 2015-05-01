@@ -2,16 +2,7 @@
 # -*- coding: UTF8 -*-
 
 # tuner.py
-# version 1.4
-
-# ToDo
-# reset keys
-# menu deroulant choix freq
-# kill beep si close
-# alsaaudio
-# play all
-# i18n
-# separer en modules
+# version 1.5
 
 from gi.repository import Gtk, GObject
 from subprocess import Popen
@@ -167,23 +158,43 @@ class Key(Gtk.VBox):
 #########################################################################
 class Accordeur:
 
+    _BEEP = 0
+    _SOX_SINE = 1
+    _SOX_PLUCK = 2
+
     #####################################################################
     # Play note
     #####################################################################
     def play_note(self, widget, freq):
         self._disable_buttons()
-        beep_length_sec = 1000 * self._beep_length
-        beep_freq = freq
 
-        # Call beep external program
         try:
-            self._beep_process = Popen(["beep","-f %s" % beep_freq, "-l %s" % beep_length_sec])
+            if self._BEEP == self._backend:
+                self._beep_process = Popen(['beep','-f %s' % freq, '-l %s' % (1000 * self._beep_length)])
+            elif self._SOX_SINE == self._backend:
+                self._beep_process = Popen(['play', '-n', 'synth', '1', 'sine', '%s' % freq, 'repeat', '%s' % (self._beep_length - 1)])
+            elif self._SOX_PLUCK == self._backend:
+                self._beep_process = Popen(['play', '-n', 'synth', '1', 'pluck', '%s' % freq, 'repeat', '%s' % (self._beep_length - 1)])
         except OSError:
-            # Print message if beep is not installed
-            # CLI
+            self._missing_package_error(self._backend)
+        # Set polling in idle to reconnect handles
+        else:
+            GObject.idle_add(self._poll_beep_in_progress)
+
+    #####################################################################
+    # Missing package error
+    #####################################################################
+    def _missing_package_error(self, package):
+        
+        # CLI
+        if self._BEEP == package:
             print "Oops!  Apparemment, beep n'est pas installé. (http://johnath.com/beep/)"
-            print "Un paquet est sans doute disponible pour votre distribution."
-            # GUI
+        elif (self._SOX_SINE == package) or (self._SOX_PLUCK == package):
+            print "Oops!  Apparemment, sox n'est pas installé. (http://sox.sourceforge.net/)"
+        print "Un paquet est sans doute disponible pour votre distribution."
+        
+        # GUI
+        if self._BEEP == package:
             dialog = Gtk.Dialog(title="beep n'est pas installé", \
                                 parent=None, \
                                 flags=Gtk.DialogFlags.MODAL, \
@@ -192,16 +203,23 @@ class Accordeur:
             error_message = "Oops!  Apparemment, beep n'est pas installé. " \
             + "(http://johnath.com/beep/)\n" \
             + "Un paquet est sans doute disponible pour votre distribution."
-            label = Gtk.Label(label=error_message)
-            dialog.vbox.pack_start(label, True, True, 0)
-            label.show()
-            response = dialog.run()
-            if (Gtk.ResponseType.CLOSE == response or Gtk.ResponseType.DELETE_EVENT == response):
-                dialog.destroy()
+        elif (self._SOX_SINE == package) or (self._SOX_PLUCK == package):
+            dialog = Gtk.Dialog(title="sox n'est pas installé", \
+                                parent=None, \
+                                flags=Gtk.DialogFlags.MODAL, \
+                                buttons=(Gtk.STOCK_DIALOG_ERROR, \
+                                Gtk.ResponseType.CLOSE))
+            error_message = "Oops!  Apparemment, sox n'est pas installé. " \
+            + "(http://sox.sourceforge.net/)\n" \
+            + "Un paquet est sans doute disponible pour votre distribution."
+        label = Gtk.Label(label=error_message)
+        dialog.vbox.pack_start(label, True, True, 0)
+        label.show()
+        response = dialog.run()
+        if (Gtk.ResponseType.CLOSE == response or Gtk.ResponseType.DELETE_EVENT == response):
+            dialog.destroy()
 
-        # Set polling in idle to reconnect handles
-        else:
-            GObject.idle_add(self._poll_beep_in_progress)
+
 
     #####################################################################
     # Add key
@@ -222,23 +240,29 @@ class Accordeur:
             self._button_rem.set_sensitive(False)
         
     #####################################################################
-    # Change note style
-    #####################################################################
-    def _change_notestyle(self, widget, notestyle):
-        self._notestyle = notestyle
-        for key in self._buttons:
-            key.set_label()
-
-    #####################################################################
     # Get note style
     #####################################################################
     def get_notestyle(self):
         return self._notestyle
 
     #####################################################################
-    # Change beep length
+    # Set note style
     #####################################################################
-    def _change_beep_length (self, widget, beep_length_spin):
+    def _set_notestyle(self, widget, notestyle):
+        self._notestyle = notestyle
+        for key in self._buttons:
+            key.set_label()
+
+    #####################################################################
+    # Set backend
+    #####################################################################
+    def _set_backend(self, widget, backend):
+        self._backend = backend
+
+    #####################################################################
+    # Set beep length
+    #####################################################################
+    def _set_beep_length (self, widget, beep_length_spin):
         self._beep_length = beep_length_spin.get_value()
 
     #####################################################################
@@ -296,6 +320,7 @@ class Accordeur:
         # Settings
         self._beep_length = 1
         self._notestyle = "French"
+        self._backend = self._SOX_PLUCK
 
         # Create window
         ###############
@@ -403,11 +428,11 @@ class Accordeur:
         VBox_notestyle.pack_start(label, False, True, 0)
         label.show()
         button = Gtk.RadioButton.new_with_label_from_widget(None, "Française")
-        button.connect("clicked", self._change_notestyle, "French")
+        button.connect("clicked", self._set_notestyle, "French")
         VBox_notestyle.pack_start(button, False, True, 0)
         button.show()
         button = Gtk.RadioButton.new_with_label_from_widget(button, "Anglaise")
-        button.connect("clicked", self._change_notestyle, "English")
+        button.connect("clicked", self._set_notestyle, "English")
         VBox_notestyle.pack_start(button, False, True, 0)
         button.show()
         HBox_settings.pack_start(VBox_notestyle, False, True, 0)
@@ -427,15 +452,41 @@ class Accordeur:
         beep_length_adj = Gtk.Adjustment(value=self._beep_length, \
                                          lower=1, \
                                          upper=10, \
-                                         step_increment=0.5, \
+                                         step_increment=1, \
                                          page_increment=1, \
                                          page_size=0)
         beep_length_spin = Gtk.SpinButton(adjustment=beep_length_adj, climb_rate=0, digits=1)
-        beep_length_adj.connect("value_changed", self._change_beep_length, beep_length_spin)
+        beep_length_adj.connect("value_changed", self._set_beep_length, beep_length_spin)
         VBox_beep_length.pack_start(beep_length_spin, False, True, 0)
         beep_length_spin.show()
         HBox_settings.pack_start(VBox_beep_length, False, True, 0)
         VBox_beep_length.show()
+
+        # Separator
+        separator = Gtk.VSeparator()
+        HBox_settings.pack_start(separator, False, True, 0)
+        separator.show()
+
+        # Note style selector
+        VBox_backend = Gtk.VBox()
+        label = Gtk.Label(label="Sortie")
+        label.set_alignment(0,1)
+        VBox_backend.pack_start(label, False, True, 0)
+        label.show()
+        button = Gtk.RadioButton.new_with_label_from_widget(None, "sox pluck")
+        button.connect("clicked", self._set_backend, self._SOX_PLUCK)
+        VBox_backend.pack_start(button, False, True, 0)
+        button.show()
+        button = Gtk.RadioButton.new_with_label_from_widget(button, "sox sine")
+        button.connect("clicked", self._set_backend, self._SOX_SINE)
+        VBox_backend.pack_start(button, False, True, 0)
+        button.show()
+        button = Gtk.RadioButton.new_with_label_from_widget(button, "beep")
+        button.connect("clicked", self._set_backend, self._BEEP)
+        VBox_backend.pack_start(button, False, True, 0)
+        button.show()
+        HBox_settings.pack_start(VBox_backend, False, True, 0)
+        VBox_backend.show()
 
         # Show everything
         #################
