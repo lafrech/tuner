@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 2.4\n"
 "Report-Msgid-Bugs-To: jerome@jolimont.fr\n"
-"POT-Creation-Date: 2015-05-01 22:37+0200\n"
+"POT-Creation-Date: 2015-05-01 23:18+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -53,12 +53,16 @@ msgstr ""
 msgid "Output"
 msgstr ""
 
+#: tuner.py:812
+msgid "Could not terminate process."
+msgstr ""
+
 #: tuner.py:826
-msgid "Oops!  It seems beep is not installed."
+msgid "Oops! It seems beep is not installed."
 msgstr ""
 
 #: tuner.py:829
-msgid "Oops!  It seems sox is not installed."
+msgid "Oops! It seems sox is not installed."
 msgstr ""
 
 #: tuner.py:831
@@ -67,8 +71,4 @@ msgstr ""
 
 #: tuner.py:837
 msgid "Missing program"
-msgstr ""
-
-#: tuner.py:1061
-msgid "Could not SIGINT process."
 msgstr ""

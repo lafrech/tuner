@@ -805,11 +805,11 @@ class Tuner:
         self._beep_queue.clear()
         # If process still alive (or zombie)
         if self._note_playing :
-            # Send SIGINT signal
+            # Terminate process (send SIGTERM signal)
             try:
-                self._beep_process.send_signal(SIGINT)
+                self._beep_process.terminate()
             except OSError:
-                print ("Could not SIGINT process.")
+                print (_("Could not terminate process."))
 
     def _missing_package_error(self, package):
         
@@ -823,10 +823,10 @@ class Tuner:
 
         # Error message
         if package == self._BEEP:
-            error_message = _("Oops!  It seems beep is not installed.")
+            error_message = _("Oops! It seems beep is not installed.")
             error_message += "\n(http://johnath.com/beep/)\n"
         elif (package == self._SOX_SINE) or (package == self._SOX_PLUCK):
-            error_message = _("Oops!  It seems sox is not installed.")
+            error_message = _("Oops! It seems sox is not installed.")
             error_message += "\n(http://sox.sourceforge.net/)\n"
         error_message += _("A package should be available for your distribution.")
 
@@ -1052,16 +1052,8 @@ class Tuner:
 
         # self._beep_process is not 0 : a subprocess was launched at some point
         if self._beep_process != 0 :
-            # If process still alive (or zombie)
-            if self._note_playing :
-                # Send signal
-                try:
-                    self._beep_process.send_signal(SIGINT)
-                except OSError:
-                    print (_("Could not SIGINT process."))
-                # Wait for process to complete
-                else:
-                    self._beep_process.wait()
+            self._stop_playback()
+
         # Close application
         Gtk.main_quit()
 
