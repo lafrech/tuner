@@ -2,24 +2,21 @@
 # -*- coding: UTF8 -*-
 
 # tuner.py
-# version 1.8
+# version 1.9
 
-from gi.repository import Gtk, GObject
+from gi.repository import Gtk, GObject, Gdk
 from subprocess import Popen
 from collections import deque
-import signal, errno
+from signal import SIGINT
 
 #########################################################################
-# class Key 
+# class Note
 #########################################################################
-# Each instance is a key on the board, surrounded by two arrowed buttons
-# that raise or lower the tune
+# Defines note names and frequencies
 #########################################################################
-class Key(Gtk.Box):
+class Note():
 
-    _INDEX_FR_NAME = 0
-    _INDEX_EN_NAME = 1
-    _INDEX_FREQ = 2
+    INDEX_FR_NAME, INDEX_EN_NAME, INDEX_FREQ = range(3)
 
     keys = [["Do", "C", "32.7"], ["Do♯","C♯", "34.65"], ["Ré", "D", "36.71"],
             ["Ré♯","D♯", "38.89"], ["Mi", "E", "41.2"], ["Fa", "F", "43.65"],
@@ -54,21 +51,116 @@ class Key(Gtk.Box):
             ["Fa♯","F♯", "5919.91"], ["Sol", "G", "6271.93"], ["Sol♯","G♯", "6644.88"],
             ["La", "A", "7040"], ["La♯","A♯", "7458.62"], ["Si", "B", "7902.13"]]
 
+#########################################################################
+# class Note_selection_dialog
+#########################################################################
+# Custom widget to pick a frequency
+#########################################################################
+class Note_selection_dialog(Gtk.Dialog):
+        
+    #####################################################################
+    # Key pressed
+    #####################################################################
+    def _key_pressed(self, widget, event):
+        key = Gdk.keyval_name(event.keyval)
+        if 'Escape' == key:
+            self.emit('response', Gtk.ResponseType.CANCEL)
+        elif 'Return' == key:
+            self._note_selected()
+
+    #####################################################################
+    # Double-click
+    #####################################################################
+    def _double_click(self, widget, event):
+        if event.button == 1 and event.type == Gdk.EventType._2BUTTON_PRESS :
+            self._note_selected()
+
+    #####################################################################
+    # Note selected
+    #####################################################################
+    def _note_selected(self):
+        # Get selection
+        select = self._tree.get_selection()
+        model, treeiter = select.get_selected()
+        if treeiter is not None:
+            self._index = model.get_path(treeiter).get_indices()[0] 
+            self.emit('response', Gtk.ResponseType.OK)
+
+    #####################################################################
+    # Get index
+    #####################################################################
+    def get_index(self):
+        return self._index
+    
+    #####################################################################
+    # Init
+    #####################################################################
+    def __init__(self, title, index, notestyle_index):
+
+        # Notes
+        store = (Gtk.ListStore(str, str, str))
+        for freq in Note.keys:
+            store.append(freq)
+
+        # Window
+        #GObject.GObject.__init__(self, title)
+        GObject.GObject.__init__(self)
+        self.set_modal(True)
+        self.set_title(title)
+        self.set_size_request(150,600)
+        self.set_border_width(10)
+        self.connect("key-press-event", self._key_pressed)
+        # Position window under mouse cursor
+        # Should be replaced with something better for keyboard use
+        self.set_position(Gtk.WindowPosition.MOUSE)
+
+        # Treeview
+        self._tree = Gtk.TreeView(store)
+        self._tree.connect("button-press-event", self._double_click) 
+        # Select current freq
+        self._tree.set_cursor(Gtk.TreePath(index), None, False)
+        # Scroll to current freq
+        self._tree.scroll_to_cell(index, use_align=True, row_align=0.5)
+        
+        # Name
+        self._renderer = Gtk.CellRendererText()
+        self._column = Gtk.TreeViewColumn("Note")
+        self._column.pack_start(self._renderer, True)
+        self._column.add_attribute(self._renderer, "text", notestyle_index)
+        self._tree.append_column(self._column)
+
+        # Freq
+        renderer = Gtk.CellRendererText()
+        column = Gtk.TreeViewColumn("Frequence", renderer, text=2)
+        self._tree.append_column(column)
+        
+        # Scroller
+        scroll = Gtk.ScrolledWindow()
+        scroll.add(self._tree)
+        self.vbox.pack_start(scroll, True, True, 0)
+        
+        # Show all
+        ##########
+        self._tree.show()
+        scroll.show()
+        self.show()
+
+#########################################################################
+# class Key 
+#########################################################################
+# Each instance is a key on the board, along with buttons to select 
+# another note
+#########################################################################
+class Key(Gtk.Box):
 
     #####################################################################
     # Increment freq
     #####################################################################
-    def increment_freq(self, widget):
-        if self._index < len(self.keys) - 1:
+    def increment_freq(self, *args):
+        if self._index < len(Note.keys) - 1:
             self._index = self._index + 1
-            freq = self.keys[self._index][self._INDEX_FREQ]
-            self._button.disconnect(self._handler)
-            self._handler = \
-                self._button.connect("clicked", 
-                                     self._accordeur.add_note_to_queue, 
-                                     freq)
             self.set_label()
-        if len(self.keys) - 1 == self._index :
+        if self._index is len(Note.keys) - 1 :
             self._button_up.set_sensitive(False)
         self._button_down.set_sensitive(True)
         self._accordeur.keys_modified()
@@ -76,60 +168,112 @@ class Key(Gtk.Box):
     #####################################################################
     # Decrement freq
     #####################################################################
-    def decrement_freq(self, widget):
+    def decrement_freq(self, *args):
         if self._index > 0:
             self._index = self._index - 1
-            freq = self.keys[self._index][self._INDEX_FREQ]
-            self._button.disconnect(self._handler)
-            self._handler = \
-                self._button.connect("clicked", 
-                                     self._accordeur.add_note_to_queue, 
-                                     freq)
             self.set_label()
-        if 0 == self._index:
+        if self._index is 0:
             self._button_down.set_sensitive(False)
         self._button_up.set_sensitive(True)
         self._accordeur.keys_modified()
         
     #####################################################################
+    # Select note
+    #####################################################################
+    def _select_note(self, widget):
+
+        # Create note selection dialog
+        note_selector = Note_selection_dialog("Select note", 
+                                            self._index,
+                                            self._accordeur.get_notestyle())
+        # Wait for response
+        response = note_selector.run()
+              
+        # If new freq selected
+        if response == Gtk.ResponseType.OK:
+            # Get freq index from dialog
+            self._index = note_selector.get_index()
+            # Set label
+            self.set_label()
+            # Set buttons sensitivity accordingly
+            if self._index is 0:
+                self._button_up.set_sensitive(True)
+                self._button_down.set_sensitive(False)
+            elif self._index is (len(Note.keys) - 1 ):
+                self._button_up.set_sensitive(False)
+                self._button_down.set_sensitive(True)
+            else:
+                self._button_up.set_sensitive(True)
+                self._button_down.set_sensitive(True)
+            self._accordeur.keys_modified()
+        
+        # Destroy widget
+        note_selector.destroy()
+    
+    #####################################################################
     # Get freq
     #####################################################################
     def get_freq(self):
-        return self.keys[self._index][self._INDEX_FREQ]
+        return Note.keys[self._index][Note.INDEX_FREQ]
+
+    #####################################################################
+    # Get index
+    #####################################################################
+    def get_index(self):
+        return self._index
 
     #####################################################################
     # Set label
     #####################################################################
     def set_label(self):
+        # Get notestyle
         notestyle = self._accordeur.get_notestyle()
-        if "French" == notestyle:
-            label = self.keys[self._index][self._INDEX_FR_NAME]
-        elif "English" == notestyle:
-            label = self.keys[self._index][self._INDEX_EN_NAME]
-        self._button.set_label(label)
+       
+        # Set button label
+        self._pick_button.set_label(Note.keys[self._index][notestyle])
 
     #####################################################################
     # Enable
     #####################################################################
     def enable(self):
-        self._button.set_sensitive(True)
+        self._play_button.set_sensitive(True)
 
     #####################################################################
     # Disable
     #####################################################################
     def disable(self):
-        self._button.set_sensitive(False)
+        self._play_button.set_sensitive(False)
+
+    #####################################################################
+    # Play
+    #####################################################################
+    def _play(self, *args):
+        self._accordeur.add_note_to_queue(None, Note.keys[self._index][Note.INDEX_FREQ])
 
     #####################################################################
     # Init
     #####################################################################
-    def __init__(self, index, notestyle, accordeur):
+    def __init__(self, index, accordeur):
 
         self._index = index
         self._accordeur = accordeur
         
-        # Init VBox
+        # Vertical box
+        ##############
         GObject.GObject.__init__(self, spacing=5, orientation=Gtk.Orientation.VERTICAL)
+
+        # Add play button
+        self._play_button = Gtk.Button()
+        self._play_button.set_size_request(40, 40)
+        self._play_button.set_label(u"\u266A")
+        self.pack_start(self._play_button, True, True, 0)
+        self._play_button.show()
+
+        # Add pick freq button
+        self._pick_button = Gtk.Button()
+        self._pick_button.set_size_request(10, 40)
+        self.pack_start(self._pick_button, True, True, 0)
+        self._pick_button.show()
 
         # Add up arrow
         HBox_arrow = Gtk.Box()
@@ -145,12 +289,6 @@ class Key(Gtk.Box):
         HBox_arrow.show()
         self._button_up.show()
 
-        # Add button
-        self._button = Gtk.Button()
-        self._button.set_size_request(40, 40)
-        self.pack_start(self._button, True, True, 0)
-        self._button.show()
-
         # Add down arrow
         HBox_arrow = Gtk.Box()
         arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.DOWN, shadow_type=Gtk.ShadowType.OUT)
@@ -164,26 +302,26 @@ class Key(Gtk.Box):
         self.pack_start(self._button_down, False, True, 0)
         HBox_arrow.show()
         self._button_down.show()
-
-        # Add label
-        self.set_label()
-
-        # Connect handler
-        self._handler = self._button.connect("clicked", accordeur.add_note_to_queue, self.keys[index][2])
+        
+        # Connect handlers
+        ##################
+        self._handler = self._play_button.connect("clicked", self._play)
         self._button_up.connect("clicked", self.increment_freq)
         self._button_down.connect("clicked", self.decrement_freq)
+        self._pick_button.connect("clicked", self._select_note)
 
-        # Show
+        # Show all
+        ##########
+        self.set_label()
         self.show()
 
 #########################################################################
-# class Keyboard
+# class Tuner
 #########################################################################
-class Keyboard:
+class Tuner:
 
-    _BEEP = 0
-    _SOX_SINE = 1
-    _SOX_PLUCK = 2
+    # Define backends
+    _BEEP, _SOX_SINE, _SOX_PLUCK = range(3)
 
     #####################################################################
     # Play note
@@ -192,18 +330,18 @@ class Keyboard:
         self._note_playing = True
         self._disable_buttons()
         try:
-            if self._BEEP == self._backend:
+            if self._backend is self._BEEP:
                 self._beep_process = \
                     Popen(['beep',
                            '-f %s' % freq, 
                            '-l %s' % (1000 * self._beep_length)])
-            elif self._SOX_SINE == self._backend:
+            elif self._backend is self._SOX_SINE:
                 self._beep_process = \
                     Popen(['play', '-n', 
                            'synth', '1', 
                            'sine', '%s' % freq, 
                            'repeat', '%s' % (self._beep_length - 1)])
-            elif self._SOX_PLUCK == self._backend:
+            elif self._backend is self._SOX_PLUCK:
                 self._beep_process = \
                     Popen(['play', '-n', 
                            'synth', '1', 
@@ -219,7 +357,7 @@ class Keyboard:
     #####################################################################
     # Stop playback
     #####################################################################
-    def _stop_playback_request(self, widget):
+    def _stop_playback_request(self, *args):
         GObject.idle_add(self._stop_playback)
 
     #####################################################################
@@ -228,10 +366,10 @@ class Keyboard:
     def _stop_playback(self):
         self._beep_queue.clear()
         # If process still alive (or zombie)
-        if self._note_playing is True:
+        if self._note_playing :
             # Send signal
             try:
-                self._beep_process.send_signal(signal.SIGINT)
+                self._beep_process.send_signal(SIGINT)
             except OSError:
                 print ("Could not SIGINT process")
 
@@ -241,14 +379,14 @@ class Keyboard:
     def _missing_package_error(self, package):
         
         # CLI
-        if self._BEEP == package:
+        if package is self._BEEP:
             print ("Oops!  Apparemment, beep n'est pas installé. (http://johnath.com/beep/)")
-        elif (self._SOX_SINE == package) or (self._SOX_PLUCK == package):
+        elif (package is self._SOX_SINE) or (package is self._SOX_PLUCK):
             print ("Oops!  Apparemment, sox n'est pas installé. (http://sox.sourceforge.net/)")
         print ("Un paquet est sans doute disponible pour votre distribution.")
         
         # GUI
-        if self._BEEP == package:
+        if package is self._BEEP:
             dialog = Gtk.Dialog(title="beep n'est pas installé", \
                                 parent=None, \
                                 flags=Gtk.DialogFlags.MODAL, \
@@ -257,7 +395,7 @@ class Keyboard:
             error_message = "Oops!  Apparemment, beep n'est pas installé. " \
             + "(http://johnath.com/beep/)\n" \
             + "Un paquet est sans doute disponible pour votre distribution."
-        elif (self._SOX_SINE == package) or (self._SOX_PLUCK == package):
+        elif (package is self._SOX_SINE) or (package is self._SOX_PLUCK):
             dialog = Gtk.Dialog(title="sox n'est pas installé", \
                                 parent=None, \
                                 flags=Gtk.DialogFlags.MODAL, \
@@ -283,35 +421,46 @@ class Keyboard:
     # Play note in queue
     #####################################################################
     def _play_note_from_queue(self):
-        if self._note_playing is False:
+        # If no playback ongoing
+        if not self._note_playing :
+            # If Queue not empty
             if self._beep_queue:
+                # Play note from queue
                 self._play_note(self._beep_queue.popleft())
         return True
 
     #####################################################################
     # Play all
     #####################################################################
-    def _play_all(self, widget):
+    def _play_all(self, *args):
+        # Add all notes ont keyboard to queue
         for key in self._buttons:
             self.add_note_to_queue(None, key.get_freq())
 
     #####################################################################
     # Add key
     #####################################################################
-    def _add_key(self, widget, hbox, index, notestyle):
-        key = Key(index, notestyle, self)
+    def _add_key(self, widget, hbox, index=None):
+        # If no freq specified, use same as rightmost
+        if index is None:
+            index = self._buttons[-1].get_index()
+        
+        # Create new key
+        key = Key(index, self)
         hbox.pack_start(key, True, True, 0)
         self._buttons.append(key)
+        
+        # Refresh button and flag states
         self._button_rem.set_sensitive(True)
         self.keys_modified()
 
     #####################################################################
     # Remove key
     #####################################################################
-    def _rem_key(self, widget):
+    def _rem_key(self, *args):
         if len(self._buttons):
             self._buttons.pop().destroy()
-        if 0 == len(self._buttons):
+        if not len(self._buttons):
             self._button_rem.set_sensitive(False)
         self.keys_modified()
         
@@ -344,17 +493,19 @@ class Keyboard:
     #####################################################################
     # Tune up
     #####################################################################
-    def _tune_up (self, widget):
+    def _tune_up (self, *args):
+        # Tune all keys one semitone up
         for key in self._buttons:
-            key.increment_freq(None)
+            key.increment_freq()
         self.keys_modified()
 
     #####################################################################
     # Tune down
     #####################################################################
-    def _tune_down (self, widget):
+    def _tune_down (self, *args):
+        # Tune all keys one semitone down
         for key in self._buttons:
-            key.decrement_freq(None)
+            key.decrement_freq()
         self.keys_modified()
 
     #####################################################################
@@ -364,6 +515,7 @@ class Keyboard:
         # Disable all keys
         for key in self._buttons:
             key.disable()
+        
         # Enable stop playback button and disable the others
         self._reset_button.set_sensitive(False)
         self._play_all_button.set_sensitive(False)
@@ -376,8 +528,9 @@ class Keyboard:
         # Enable all keys
         for key in self._buttons:
             key.enable()
+        
         # Disable stop playback button and enable the others
-        if self._keys_modified is True:
+        if self._keys_modified :
             self._reset_button.set_sensitive(True)
         self._play_all_button.set_sensitive(True)
         self._stop_playback_button.set_sensitive(False)
@@ -386,13 +539,19 @@ class Keyboard:
     # Reset keys
     #####################################################################
     def _reset_keys (self, widget, hbox):
-        for i in range(len(self._buttons)):
-            self._rem_key(widget)
-        default_key_indexes = [28, 33, 38, 43, 47, 52]
-        for i in range (6):
-            self._add_key(None, hbox, default_key_indexes[i], self._notestyle)
-        self._reset_button.set_sensitive(False)
+        # Disable keys modified flag
         self._keys_modified = False
+        
+        # Remove all keys
+        for i in range(len(self._buttons)):
+            self._rem_key()
+        
+        # Set default keys
+        for i in range (len(self._default_keys)):
+            self._add_key(None, hbox, self._default_keys[i])
+        
+        # Disable reset button
+        self._reset_button.set_sensitive(False)
         
     #####################################################################
     # Keys modified
@@ -400,6 +559,7 @@ class Keyboard:
     def keys_modified (self):
         # When the keyboard is modified, set the flag...
         self._keys_modified = True
+        
         # ... and set reset button sensitive
         self._reset_button.set_sensitive(True)
 
@@ -420,27 +580,24 @@ class Keyboard:
     #####################################################################
     # Close
     #####################################################################
-    def _close_request (self, widget):
+    def _close_request (self, *args):
         GObject.idle_add(self._close)
 
     #####################################################################
     # Close
     #####################################################################
     def _close (self):
-        # If self._beep_process != 0, a subprocess was launched at some point
-        if (0 != self._beep_process):
-            print "process launched"
+        # self._beep_process is not 0 -> a subprocess was launched at some point
+        if self._beep_process is not 0 :
             # If process still alive (or zombie)
-            if self._note_playing is True:
-                print "process still alive"
+            if self._note_playing :
                 # Send signal
                 try:
-                    self._beep_process.send_signal(signal.SIGINT)
+                    self._beep_process.send_signal(SIGINT)
                 except OSError:
                     print ("Could not SIGINT process")
                 # Wait for process to complete
                 else:
-                    print "signal sent"
                     self._beep_process.wait()
         # Close application
         Gtk.main_quit()
@@ -448,7 +605,9 @@ class Keyboard:
     #####################################################################
     # Init
     #####################################################################
-    def __init__(self):
+    def __init__(self, default_keys=[]):
+
+        self._default_keys = default_keys
 
         # Variables
         ###########
@@ -470,14 +629,14 @@ class Keyboard:
 
         # Settings
         self._beep_length = 1
-        self._notestyle = "French"
+        self._notestyle = Note.INDEX_FR_NAME
         self._backend = self._SOX_PLUCK
 
         # Create window
         ###############
         self._window = Gtk.Window()
         self._window.connect("destroy", self._close_request)
-        self._window.set_title("Keyboard")
+        self._window.set_title("Tuner")
         self._window.set_border_width(10)
 
         # Create vertical box and horizontal sub-boxes
@@ -515,22 +674,8 @@ class Keyboard:
         #####################
 
         # Add global incrementor / decrementor buttons
-        VBox_inc_dec = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        VBox_inc_dec = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
 
-        HBox_arrow = Gtk.Box()
-        arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.UP, shadow_type=Gtk.ShadowType.OUT)
-        HBox_arrow.pack_start(arrow, True, True, 0)
-        arrow.show()
-        label = Gtk.Label(label=u"\u266F")
-        HBox_arrow.pack_start(label, True, True, 0)
-        label.show()
-        self._button_up = Gtk.Button()
-        self._button_up.add(HBox_arrow)
-        self._button_up.set_size_request(40, -1)
-        VBox_inc_dec.pack_start(self._button_up, False, True, 0)
-        HBox_arrow.show()
-        self._button_up.show()
-        
         HBox_arrow = Gtk.Box()
         arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.DOWN, shadow_type=Gtk.ShadowType.OUT)
         HBox_arrow.pack_start(arrow, True, True, 0)
@@ -545,29 +690,29 @@ class Keyboard:
         HBox_arrow.show()
         self._button_down.show()
 
+        HBox_arrow = Gtk.Box()
+        arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.UP, shadow_type=Gtk.ShadowType.OUT)
+        HBox_arrow.pack_start(arrow, True, True, 0)
+        arrow.show()
+        label = Gtk.Label(label=u"\u266F")
+        HBox_arrow.pack_start(label, True, True, 0)
+        label.show()
+        self._button_up = Gtk.Button()
+        self._button_up.add(HBox_arrow)
+        self._button_up.set_size_request(40, -1)
+        VBox_inc_dec.pack_end(self._button_up, False, True, 0)
+        HBox_arrow.show()
+        self._button_up.show()
+        
         VBox_inc_dec.show()
         HBox_keys.pack_start(VBox_inc_dec, True, True, 0)
 
         self._button_up.connect("clicked", self._tune_up)
         self._button_down.connect("clicked", self._tune_down)
 
-        # Add add / remove key buttons
-        VBox_add_rem = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        # Add / remove key buttons
+        VBox_add_rem = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
 
-        HBox_arrow = Gtk.Box()
-        arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.UP, shadow_type=Gtk.ShadowType.OUT)
-        HBox_arrow.pack_start(arrow, True, True, 0)
-        arrow.show()
-        label = Gtk.Label(label="+")
-        HBox_arrow.pack_start(label, True, True, 0)
-        label.show()
-        self._button_add = Gtk.Button()
-        self._button_add.add(HBox_arrow)
-        self._button_add.set_size_request(40, -1)
-        VBox_add_rem.pack_start(self._button_add, False, True, 0)
-        HBox_arrow.show()
-        self._button_add.show()
-        
         HBox_arrow = Gtk.Box()
         arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.DOWN, shadow_type=Gtk.ShadowType.OUT)
         HBox_arrow.pack_start(arrow, True, True, 0)
@@ -582,10 +727,24 @@ class Keyboard:
         HBox_arrow.show()
         self._button_rem.show()
 
+        HBox_arrow = Gtk.Box()
+        arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.UP, shadow_type=Gtk.ShadowType.OUT)
+        HBox_arrow.pack_start(arrow, True, True, 0)
+        arrow.show()
+        label = Gtk.Label(label="+")
+        HBox_arrow.pack_start(label, True, True, 0)
+        label.show()
+        self._button_add = Gtk.Button()
+        self._button_add.add(HBox_arrow)
+        self._button_add.set_size_request(40, -1)
+        VBox_add_rem.pack_end(self._button_add, False, True, 0)
+        HBox_arrow.show()
+        self._button_add.show()
+
         VBox_add_rem.show()
         HBox_keys.pack_end(VBox_add_rem, True, True, 0)
 
-        self._button_add.connect("clicked", self._add_key, HBox_keys, 33, self._notestyle)
+        self._button_add.connect("clicked", self._add_key, HBox_keys)
         self._button_rem.connect("clicked", self._rem_key)
 
         # Set default keys
@@ -601,11 +760,11 @@ class Keyboard:
         VBox_notestyle.pack_start(label, False, True, 0)
         label.show()
         button = Gtk.RadioButton.new_with_label_from_widget(None, "Française")
-        button.connect("clicked", self._set_notestyle, "French")
+        button.connect("clicked", self._set_notestyle, Note.INDEX_FR_NAME)
         VBox_notestyle.pack_start(button, False, True, 0)
         button.show()
         button = Gtk.RadioButton.new_with_label_from_widget(button, "Anglaise")
-        button.connect("clicked", self._set_notestyle, "English")
+        button.connect("clicked", self._set_notestyle, Note.INDEX_EN_NAME)
         VBox_notestyle.pack_start(button, False, True, 0)
         button.show()
         HBox_settings.pack_start(VBox_notestyle, False, True, 0)
@@ -684,6 +843,7 @@ def main():
     return 0       
 
 if __name__ == "__main__":
-    Keyboard()
+    # Create tuner with default guitar tuning (E, A, D, G, B, e)
+    Tuner([16, 21, 26, 31, 35, 40])
     main()
 
