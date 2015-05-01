@@ -2,7 +2,7 @@
 # -*- coding: UTF8 -*-
 
 # tuner.py
-# version 1.7
+# version 1.8
 
 from gi.repository import Gtk, GObject
 from subprocess import Popen
@@ -219,19 +219,21 @@ class Keyboard:
     #####################################################################
     # Stop playback
     #####################################################################
-    def _stop_playback(self, widget):
+    def _stop_playback_request(self, widget):
+        GObject.idle_add(self._stop_playback)
+
+    #####################################################################
+    # Stop playback
+    #####################################################################
+    def _stop_playback(self):
         self._beep_queue.clear()
-        self._beep_process.poll()
-        # If process still alive
-        if (None == self._beep_process.returncode):
+        # If process still alive (or zombie)
+        if self._note_playing is True:
             # Send signal
             try:
                 self._beep_process.send_signal(signal.SIGINT)
-            except OSError, e:
-                if e.errno == errno.ESRCH:
-                    pass      # process already dead
-                else:
-                    raise     # something else wrong - raise exception
+            except OSError:
+                print ("Could not SIGINT process")
 
     #####################################################################
     # Missing package error
@@ -301,7 +303,7 @@ class Keyboard:
         hbox.pack_start(key, True, True, 0)
         self._buttons.append(key)
         self._button_rem.set_sensitive(True)
-        self._reset_button.set_sensitive(True)
+        self.keys_modified()
 
     #####################################################################
     # Remove key
@@ -311,7 +313,7 @@ class Keyboard:
             self._buttons.pop().destroy()
         if 0 == len(self._buttons):
             self._button_rem.set_sensitive(False)
-        self._reset_button.set_sensitive(True)
+        self.keys_modified()
         
     #####################################################################
     # Get note style
@@ -345,7 +347,7 @@ class Keyboard:
     def _tune_up (self, widget):
         for key in self._buttons:
             key.increment_freq(None)
-        self._reset_button.set_sensitive(True)
+        self.keys_modified()
 
     #####################################################################
     # Tune down
@@ -353,7 +355,7 @@ class Keyboard:
     def _tune_down (self, widget):
         for key in self._buttons:
             key.decrement_freq(None)
-        self._reset_button.set_sensitive(True)
+        self.keys_modified()
 
     #####################################################################
     # Disable buttons
@@ -363,8 +365,8 @@ class Keyboard:
         for key in self._buttons:
             key.disable()
         # Enable stop playback button and disable the others
-        self._play_all_button.set_sensitive(False)
         self._reset_button.set_sensitive(False)
+        self._play_all_button.set_sensitive(False)
         self._stop_playback_button.set_sensitive(True)
 
     #####################################################################
@@ -375,7 +377,8 @@ class Keyboard:
         for key in self._buttons:
             key.enable()
         # Disable stop playback button and enable the others
-        self._reset_button.set_sensitive(True)
+        if self._keys_modified is True:
+            self._reset_button.set_sensitive(True)
         self._play_all_button.set_sensitive(True)
         self._stop_playback_button.set_sensitive(False)
 
@@ -389,22 +392,23 @@ class Keyboard:
         for i in range (6):
             self._add_key(None, hbox, default_key_indexes[i], self._notestyle)
         self._reset_button.set_sensitive(False)
+        self._keys_modified = False
         
     #####################################################################
     # Keys modified
     #####################################################################
     def keys_modified (self):
+        # When the keyboard is modified, set the flag...
+        self._keys_modified = True
+        # ... and set reset button sensitive
         self._reset_button.set_sensitive(True)
 
     #####################################################################
     # Poll beep in progress
     #####################################################################
     def _poll_beep_in_progress (self):
-        # Check if process is done
-        self._beep_process.poll()
-        if (None == self._beep_process.returncode):
-            # Process still running
-            # Return true to keep polling
+        # Process still running -> return true to keep polling
+        if self._beep_process.poll() is None:
             return True
         # If no more note in queue, enable buttons. Otherwise, don't.
         # (this avoids glitches when enabling/disabling instantly)
@@ -416,30 +420,28 @@ class Keyboard:
     #####################################################################
     # Close
     #####################################################################
-    def _close (self, widget):
+    def _close_request (self, widget):
+        GObject.idle_add(self._close)
+
+    #####################################################################
+    # Close
+    #####################################################################
+    def _close (self):
         # If self._beep_process != 0, a subprocess was launched at some point
         if (0 != self._beep_process):
             print "process launched"
-            # If process still alive
+            # If process still alive (or zombie)
             if self._note_playing is True:
-            #self._beep_process.poll()
-            #if (None == self._beep_process.returncode):
-                print "process stil alive"
+                print "process still alive"
                 # Send signal
                 try:
                     self._beep_process.send_signal(signal.SIGINT)
-                except OSError, e:
-                    if e.errno == errno.ESRCH:
-                        print "errno"
-                        pass      # process already dead
-                    else:
-                        raise     # something else wrong - raise exception
+                except OSError:
+                    print ("Could not SIGINT process")
                 # Wait for process to complete
                 else:
                     print "signal sent"
                     self._beep_process.wait()
-            else:
-                print "process already dead"
         # Close application
         Gtk.main_quit()
 
@@ -463,6 +465,9 @@ class Keyboard:
         # Note playing token
         self._note_playing  = False
 
+        # Keys modified flag
+        self._keys_modified = False
+
         # Settings
         self._beep_length = 1
         self._notestyle = "French"
@@ -471,7 +476,7 @@ class Keyboard:
         # Create window
         ###############
         self._window = Gtk.Window()
-        self._window.connect("destroy", self._close)
+        self._window.connect("destroy", self._close_request)
         self._window.set_title("Keyboard")
         self._window.set_border_width(10)
 
@@ -497,7 +502,7 @@ class Keyboard:
         self._stop_playback_button = Gtk.Button(stock=Gtk.STOCK_MEDIA_STOP)
         self._stop_playback_button.set_sensitive(False)
         HBox_controls.pack_end(self._stop_playback_button, False, False, 0)
-        self._stop_playback_button.connect("clicked", self._stop_playback)
+        self._stop_playback_button.connect("clicked", self._stop_playback_request)
         self._stop_playback_button.show()
 
         # Play all keys
