@@ -2,12 +2,12 @@
 # -*- coding: UTF8 -*-
 
 # tuner.py
-# version 1.0
+# version 1.1
 
 import pygtk
 pygtk.require('2.0')
-import gtk
-from subprocess import call
+import gtk, gobject
+from subprocess import Popen
 
 #########################################################################
 # class Accordeur
@@ -18,13 +18,19 @@ class Accordeur:
     # Play the note
     #####################################################################
     def play_note(self, widget, freq):
+        self.disable_buttons()
         beep_length_sec = 1000 * self.beep_length
         beep_freq = freq * pow(2, self.tuning/6)
+
+        # Call beep external program
         try:
-            call(["beep","-f %s" % beep_freq, "-l %s" % beep_length_sec])
+            self.beep_process = Popen(["beep","-f %s" % beep_freq, "-l %s" % beep_length_sec])
         except OSError:
             print "Oops!  Apparemment, beep n'est pas installé. (http://johnath.com/beep/)"
             print "Un paquet est sans doute disponible pour votre distribution."
+        # Set polling in idle to reconnect handles
+        else:
+            gobject.idle_add(self.poll_beep_in_progress)
 
     #####################################################################
     # Create keys
@@ -32,32 +38,31 @@ class Accordeur:
     def add_keys(self, box):
         for key in range(len(self.keys)):
             button = gtk.Button()
-            self.buttons.append(button)
-            button.set_usize(40, 40)
             button.connect("clicked", self.play_note, self.keys[key][2])
+            button.set_usize(40, 40)
             box.pack_start(button)
             button.show()
+            self.buttons.append(button)
 
     #####################################################################
     # Set labels
     #####################################################################
-    def set_key_labels(self):
+    def set_key_labels(self, notestyle):
         for key in range(len(self.keys)):
-            if self.notestyle == "French":
+            if notestyle == "French":
                 label = self.keys[key][0]
-            elif self.notestyle == "English":
+            elif notestyle == "English":
                 label = self.keys[key][1]
             else:
-                print "Note style %s does not exist, defaulting to english" % self.notestyle
+                print "Note style %s does not exist, defaulting to english" % notestyle
                 label = self.keys[key][1]
             self.buttons[key].set_label(label)
 
     #####################################################################
     # Toggle note style
     #####################################################################
-    def toggle_notestyle(self, widget, data):
-        self.notestyle = data
-        self.set_key_labels()
+    def change_notestyle(self, widget, notestyle):
+        self.set_key_labels(notestyle)
 
     #####################################################################
     # Change beep length
@@ -71,7 +76,29 @@ class Accordeur:
     def change_tuning (self, widget, tuning_spin):
         self.tuning = tuning_spin.get_value()
 
+    #####################################################################
+    # Disable buttons
+    #####################################################################
+    def disable_buttons(self):
+        for key in range(len(self.buttons)):
+            self.buttons[key].set_sensitive(False)
 
+    #####################################################################
+    # Enable buttons
+    #####################################################################
+    def enable_buttons(self):
+        for key in range(len(self.buttons)):
+            self.buttons[key].set_sensitive(True)
+
+    #####################################################################
+    # Poll beep in progress
+    #####################################################################
+    def poll_beep_in_progress (self):
+        self.beep_process.poll()
+        if (None == self.beep_process.returncode):
+            return True
+        self.enable_buttons()
+        return False
 
     #####################################################################
     # Init
@@ -81,13 +108,14 @@ class Accordeur:
         # Variables
         ###########
 
-        # Buttons
+        # Buttons and handlers
         self.buttons = []
         # Keys
         self.keys = [["Mi", "E", 164.81],["La", "A", 220],["Ré", "D", 293.66],["Sol", "G", 392],["Si", "B", 493.88],["Mi", "E", 659.26]]
 
+        self.beep_process = 0
+
         # Settings
-        self.notestyle = "French"
         self.beep_length = 1
         self.tuning = 0
 
@@ -105,7 +133,7 @@ class Accordeur:
         #####################
         HBox_keys = gtk.HBox()
         self.add_keys(HBox_keys)
-        self.set_key_labels()
+        self.set_key_labels("French")
 
         # Settings horizontal box
         #########################
@@ -118,11 +146,11 @@ class Accordeur:
         VBox_notestyle.pack_start(label, expand=False)
         label.show()
         button = gtk.RadioButton(None, "Française")
-        button.connect("clicked", self.toggle_notestyle, "French")
+        button.connect("clicked", self.change_notestyle, "French")
         VBox_notestyle.pack_start(button, expand=False)
         button.show()
         button = gtk.RadioButton(button, "Anglaise")
-        button.connect("clicked", self.toggle_notestyle, "English")
+        button.connect("clicked", self.change_notestyle, "English")
         VBox_notestyle.pack_start(button, expand=False)
         button.show()
         HBox_settings.pack_start(VBox_notestyle, expand=False)
@@ -183,7 +211,6 @@ class Accordeur:
         VBox.show()
         self.window.add(VBox)
         self.window.show()
-
 
 #########################################################################
 # main
