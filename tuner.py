@@ -2,7 +2,7 @@
 # -*- coding: UTF8 -*-
 
 # tuner.py
-# version 1.1
+# version 1.2
 
 import pygtk
 pygtk.require('2.0')
@@ -26,8 +26,22 @@ class Accordeur:
         try:
             self.beep_process = Popen(["beep","-f %s" % beep_freq, "-l %s" % beep_length_sec])
         except OSError:
+            # Print message if beep is not installed
+            # CLI
             print "Oops!  Apparemment, beep n'est pas installé. (http://johnath.com/beep/)"
             print "Un paquet est sans doute disponible pour votre distribution."
+            # GUI
+            dialog = gtk.Dialog(title="beep n'est pas installé", parent=None, flags=gtk.DIALOG_MODAL, buttons=(gtk.STOCK_DIALOG_ERROR, gtk.RESPONSE_CLOSE))
+            error_message = "Oops!  Apparemment, beep n'est pas installé. " \
+            + "(http://johnath.com/beep/)\n" \
+            + "Un paquet est sans doute disponible pour votre distribution."
+            label = gtk.Label(error_message)
+            dialog.vbox.pack_start(label, True, True, 0)
+            label.show()
+            response = dialog.run()
+            if (gtk.RESPONSE_CLOSE == response or gtk.RESPONSE_DELETE_EVENT == response):
+                dialog.destroy()
+
         # Set polling in idle to reconnect handles
         else:
             gobject.idle_add(self.poll_beep_in_progress)
@@ -54,7 +68,8 @@ class Accordeur:
             elif notestyle == "English":
                 label = self.keys[key][1]
             else:
-                print "Note style %s does not exist, defaulting to english" % notestyle
+                print "Note style %s does not exist, defaulting to english" \
+                % notestyle
                 label = self.keys[key][1]
             self.buttons[key].set_label(label)
 
@@ -111,7 +126,12 @@ class Accordeur:
         # Buttons and handlers
         self.buttons = []
         # Keys
-        self.keys = [["Mi", "E", 164.81],["La", "A", 220],["Ré", "D", 293.66],["Sol", "G", 392],["Si", "B", 493.88],["Mi", "E", 659.26]]
+        self.keys = [["Mi", "E", 164.81],
+                     ["La", "A", 220],
+                     ["Ré", "D", 293.66],
+                     ["Sol", "G", 392],
+                     ["Si", "B", 493.88],
+                     ["Mi", "E", 659.26]]
 
         self.beep_process = 0
 
