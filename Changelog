@@ -1,0 +1,89 @@
+v2.4
+Use terminate (SIGTERM) on subprocesses rather than SIGINT
+
+v2.3
+Catch SIGINT (Ctrl+C) to close application
+
+v2.2
+I18n
+French translation
+
+v2.1
+Code cleanup
+Frequency label under note selector
+Use of Gtk.ButtonBox for the top buttons to have homogenous size
+
+v2.0
+Code cleanup
+Docstring comments
+Removed highest freqs : could not be played by sox pluck
+Note selector orientation : high tones up / low tones down
+Octave shift
+Octave number added to note name
+
+v1.9
+Code cleanup
+Frequency picker widget
+Add key now defaults to the frequency from the rightmost key
+
+v1.8
+Bugfixes :
+- race conditions when sending SIGINT
+- reset button sensitivity
+
+v1.7
+Play queue
+"Play all" button
+
+v1.6
+Stop playback button added
+SIGINT process when closing
+
+v1.5
+sox backend added
+
+v1.4
+GTK3 port
+
+v1.3
+Key class creation
+Add / remove key
+Key level tuning
+
+v1.2
+Error message if beep not installed
+
+v1.1
+Enable/disable buttons during playback
+Use of Popen to call beep
+
+v1.0
+First version, using beep as backend
+
+
+ToDo
+----
+
+Bugs : 
+Button keeps hover background color if mouse out after playback (mouse out event ignored ?)
+
+
+new audio backend (v3.0 ?)
+ossaudiodev
+http://docs.python.org/library/ossaudiodev.html
+pygame
+http://www.pygame.org/docs/ref/mixer.html#pygame.mixer.Sound
+PortAudio
+http://people.csail.mit.edu/hubert/pyaudio/
+http://www.portaudio.com/
+Gstreamer
+http://developer.gnome.org/gnome-devel-demos/stable/guitar-tuner.py.html.en
+
+save settings option
+
+command line arguments for settings
+
+application icon
+
+Good practices :
+http://misko.hevery.com/code-reviewers-guide/flaw-constructor-does-real-work/
