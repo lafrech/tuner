@@ -1,0 +1,9 @@
+xgettext --language=Python --keyword=_ --output=locale/tuner.pot tuner.py
+gvim locale/tuner.pot
+#modify Project-Id-Version and Report-Msgid-Bugs-To
+#msginit -i locale/tuner.pot -l=fr_FR -o locale/fr/fr.po #Only the first time !!
+msgmerge -U locale/fr/fr.po locale/tuner.pot
+gvim locale/fr/fr.po 
+#modify e-mail address, verify Project-Id-Version et Report-Msgid-Bugs-To
+msgfmt -o locale/fr/LC_MESSAGES/tuner.mo locale/fr/fr.po
+
