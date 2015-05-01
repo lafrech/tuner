@@ -2,16 +2,24 @@
 # -*- coding: UTF8 -*-
 
 # tuner.py
-# version 1.6
+# version 1.7
 
 from gi.repository import Gtk, GObject
 from subprocess import Popen
+from collections import deque
 import signal, errno
 
 #########################################################################
 # class Key 
 #########################################################################
-class Key(Gtk.VBox):
+# Each instance is a key on the board, surrounded by two arrowed buttons
+# that raise or lower the tune
+#########################################################################
+class Key(Gtk.Box):
+
+    _INDEX_FR_NAME = 0
+    _INDEX_EN_NAME = 1
+    _INDEX_FREQ = 2
 
     keys = [["Do", "C", "32.7"], ["Do♯","C♯", "34.65"], ["Ré", "D", "36.71"],
             ["Ré♯","D♯", "38.89"], ["Mi", "E", "41.2"], ["Fa", "F", "43.65"],
@@ -53,9 +61,12 @@ class Key(Gtk.VBox):
     def increment_freq(self, widget):
         if self._index < len(self.keys) - 1:
             self._index = self._index + 1
-            freq = self.keys[self._index][2]
+            freq = self.keys[self._index][self._INDEX_FREQ]
             self._button.disconnect(self._handler)
-            self._handler = self._button.connect("clicked", self._accordeur.play_note, freq)
+            self._handler = \
+                self._button.connect("clicked", 
+                                     self._accordeur.add_note_to_queue, 
+                                     freq)
             self.set_label()
         if len(self.keys) - 1 == self._index :
             self._button_up.set_sensitive(False)
@@ -68,9 +79,12 @@ class Key(Gtk.VBox):
     def decrement_freq(self, widget):
         if self._index > 0:
             self._index = self._index - 1
-            freq = self.keys[self._index][2]
+            freq = self.keys[self._index][self._INDEX_FREQ]
             self._button.disconnect(self._handler)
-            self._handler = self._button.connect("clicked", self._accordeur.play_note, freq)
+            self._handler = \
+                self._button.connect("clicked", 
+                                     self._accordeur.add_note_to_queue, 
+                                     freq)
             self.set_label()
         if 0 == self._index:
             self._button_down.set_sensitive(False)
@@ -78,14 +92,20 @@ class Key(Gtk.VBox):
         self._accordeur.keys_modified()
         
     #####################################################################
+    # Get freq
+    #####################################################################
+    def get_freq(self):
+        return self.keys[self._index][self._INDEX_FREQ]
+
+    #####################################################################
     # Set label
     #####################################################################
     def set_label(self):
         notestyle = self._accordeur.get_notestyle()
         if "French" == notestyle:
-            label = self.keys[self._index][0]
+            label = self.keys[self._index][self._INDEX_FR_NAME]
         elif "English" == notestyle:
-            label = self.keys[self._index][1]
+            label = self.keys[self._index][self._INDEX_EN_NAME]
         self._button.set_label(label)
 
     #####################################################################
@@ -109,10 +129,10 @@ class Key(Gtk.VBox):
         self._accordeur = accordeur
         
         # Init VBox
-        GObject.GObject.__init__(self, spacing=5)
+        GObject.GObject.__init__(self, spacing=5, orientation=Gtk.Orientation.VERTICAL)
 
         # Add up arrow
-        HBox_arrow = Gtk.HBox()
+        HBox_arrow = Gtk.Box()
         arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.UP, shadow_type=Gtk.ShadowType.OUT)
         HBox_arrow.pack_start(arrow, True, True, 0)
         arrow.show()
@@ -132,7 +152,7 @@ class Key(Gtk.VBox):
         self._button.show()
 
         # Add down arrow
-        HBox_arrow = Gtk.HBox()
+        HBox_arrow = Gtk.Box()
         arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.DOWN, shadow_type=Gtk.ShadowType.OUT)
         HBox_arrow.pack_start(arrow, True, True, 0)
         arrow.show()
@@ -149,7 +169,7 @@ class Key(Gtk.VBox):
         self.set_label()
 
         # Connect handler
-        self._handler = self._button.connect("clicked", accordeur.play_note, self.keys[index][2])
+        self._handler = self._button.connect("clicked", accordeur.add_note_to_queue, self.keys[index][2])
         self._button_up.connect("clicked", self.increment_freq)
         self._button_down.connect("clicked", self.decrement_freq)
 
@@ -157,9 +177,9 @@ class Key(Gtk.VBox):
         self.show()
 
 #########################################################################
-# class Accordeur
+# class Keyboard
 #########################################################################
-class Accordeur:
+class Keyboard:
 
     _BEEP = 0
     _SOX_SINE = 1
@@ -168,18 +188,30 @@ class Accordeur:
     #####################################################################
     # Play note
     #####################################################################
-    def play_note(self, widget, freq):
+    def _play_note(self, freq):
+        self._note_playing = True
         self._disable_buttons()
-
         try:
             if self._BEEP == self._backend:
-                self._beep_process = Popen(['beep','-f %s' % freq, '-l %s' % (1000 * self._beep_length)])
+                self._beep_process = \
+                    Popen(['beep',
+                           '-f %s' % freq, 
+                           '-l %s' % (1000 * self._beep_length)])
             elif self._SOX_SINE == self._backend:
-                self._beep_process = Popen(['play', '-n', 'synth', '1', 'sine', '%s' % freq, 'repeat', '%s' % (self._beep_length - 1)])
+                self._beep_process = \
+                    Popen(['play', '-n', 
+                           'synth', '1', 
+                           'sine', '%s' % freq, 
+                           'repeat', '%s' % (self._beep_length - 1)])
             elif self._SOX_PLUCK == self._backend:
-                self._beep_process = Popen(['play', '-n', 'synth', '1', 'pluck', '%s' % freq, 'repeat', '%s' % (self._beep_length - 1)])
+                self._beep_process = \
+                    Popen(['play', '-n', 
+                           'synth', '1', 
+                           'pluck', '%s' % freq, 
+                           'repeat', '%s' % (self._beep_length - 1)])
         except OSError:
             self._missing_package_error(self._backend)
+            self._note_playing = False
         # Set polling in idle to reconnect handles
         else:
             GObject.idle_add(self._poll_beep_in_progress)
@@ -188,6 +220,7 @@ class Accordeur:
     # Stop playback
     #####################################################################
     def _stop_playback(self, widget):
+        self._beep_queue.clear()
         self._beep_process.poll()
         # If process still alive
         if (None == self._beep_process.returncode):
@@ -238,7 +271,27 @@ class Accordeur:
         if (Gtk.ResponseType.CLOSE == response or Gtk.ResponseType.DELETE_EVENT == response):
             dialog.destroy()
 
+    #####################################################################
+    # Add note to queue
+    #####################################################################
+    def add_note_to_queue(self, widget, freq):
+        self._beep_queue.append(freq)
 
+    #####################################################################
+    # Play note in queue
+    #####################################################################
+    def _play_note_from_queue(self):
+        if self._note_playing is False:
+            if self._beep_queue:
+                self._play_note(self._beep_queue.popleft())
+        return True
+
+    #####################################################################
+    # Play all
+    #####################################################################
+    def _play_all(self, widget):
+        for key in self._buttons:
+            self.add_note_to_queue(None, key.get_freq())
 
     #####################################################################
     # Add key
@@ -309,7 +362,9 @@ class Accordeur:
         # Disable all keys
         for key in self._buttons:
             key.disable()
-        # Enable stop playback button
+        # Enable stop playback button and disable the others
+        self._play_all_button.set_sensitive(False)
+        self._reset_button.set_sensitive(False)
         self._stop_playback_button.set_sensitive(True)
 
     #####################################################################
@@ -319,7 +374,9 @@ class Accordeur:
         # Enable all keys
         for key in self._buttons:
             key.enable()
-        # Disable stop playback button
+        # Disable stop playback button and enable the others
+        self._reset_button.set_sensitive(True)
+        self._play_all_button.set_sensitive(True)
         self._stop_playback_button.set_sensitive(False)
 
     #####################################################################
@@ -343,10 +400,17 @@ class Accordeur:
     # Poll beep in progress
     #####################################################################
     def _poll_beep_in_progress (self):
+        # Check if process is done
         self._beep_process.poll()
         if (None == self._beep_process.returncode):
+            # Process still running
+            # Return true to keep polling
             return True
-        self._enable_buttons()
+        # If no more note in queue, enable buttons. Otherwise, don't.
+        # (this avoids glitches when enabling/disabling instantly)
+        if not self._beep_queue:
+            self._enable_buttons()
+        self._note_playing = False
         return False
 
     #####################################################################
@@ -356,9 +420,10 @@ class Accordeur:
         # If self._beep_process != 0, a subprocess was launched at some point
         if (0 != self._beep_process):
             print "process launched"
-            self._beep_process.poll()
             # If process still alive
-            if (None == self._beep_process.returncode):
+            if self._note_playing is True:
+            #self._beep_process.poll()
+            #if (None == self._beep_process.returncode):
                 print "process stil alive"
                 # Send signal
                 try:
@@ -389,8 +454,14 @@ class Accordeur:
         # Buttons and handlers
         self._buttons = []
 
-        # Declare beep process
+        # Beep process
         self._beep_process = 0
+
+        # Beep queue
+        self._beep_queue = deque([])
+
+        # Note playing token
+        self._note_playing  = False
 
         # Settings
         self._beep_length = 1
@@ -401,32 +472,47 @@ class Accordeur:
         ###############
         self._window = Gtk.Window()
         self._window.connect("destroy", self._close)
-        self._window.set_title("Accordeur")
+        self._window.set_title("Keyboard")
         self._window.set_border_width(10)
 
-        # Create vertical box
-        VBox = Gtk.VBox(homogeneous=False, spacing=10)
+        # Create vertical box and horizontal sub-boxes
+        VBox = Gtk.Box(homogeneous=False, spacing=10, 
+                       orientation=Gtk.Orientation.VERTICAL)
+        HBox_controls = Gtk.Box()
+        #HBox_controls = Gtk.Box(homogeneous=True)
+        HBox_keys = Gtk.Box()
+        HBox_settings = Gtk.Box(homogeneous=False, spacing=10)
 
         # Control horizontal box
-        #####################
-        HBox_controls = Gtk.HBox()
+        ########################
+
+        # Reset keys modifications
         self._reset_button = Gtk.Button(stock=Gtk.STOCK_CANCEL)
         self._reset_button.set_sensitive(False)
-        HBox_controls.pack_start(self._reset_button, False, True, 0)
+        HBox_controls.pack_start(self._reset_button, False, False, 0)
+        self._reset_button.connect("clicked", self._reset_keys, HBox_keys)
         self._reset_button.show()
+
+        # Stop playback
         self._stop_playback_button = Gtk.Button(stock=Gtk.STOCK_MEDIA_STOP)
-        HBox_controls.pack_end(self._stop_playback_button, False, True, 0)
         self._stop_playback_button.set_sensitive(False)
+        HBox_controls.pack_end(self._stop_playback_button, False, False, 0)
+        self._stop_playback_button.connect("clicked", self._stop_playback)
         self._stop_playback_button.show()
+
+        # Play all keys
+        self._play_all_button = Gtk.Button(stock=Gtk.STOCK_MEDIA_PLAY)
+        HBox_controls.pack_end(self._play_all_button, False, False, 0)
+        self._play_all_button.connect("clicked", self._play_all)
+        self._play_all_button.show()
 
         # Keys horizontal box
         #####################
-        HBox_keys = Gtk.HBox()
 
         # Add global incrementor / decrementor buttons
-        VBox_inc_dec = Gtk.VBox()
+        VBox_inc_dec = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-        HBox_arrow = Gtk.HBox()
+        HBox_arrow = Gtk.Box()
         arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.UP, shadow_type=Gtk.ShadowType.OUT)
         HBox_arrow.pack_start(arrow, True, True, 0)
         arrow.show()
@@ -440,7 +526,7 @@ class Accordeur:
         HBox_arrow.show()
         self._button_up.show()
         
-        HBox_arrow = Gtk.HBox()
+        HBox_arrow = Gtk.Box()
         arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.DOWN, shadow_type=Gtk.ShadowType.OUT)
         HBox_arrow.pack_start(arrow, True, True, 0)
         arrow.show()
@@ -461,9 +547,9 @@ class Accordeur:
         self._button_down.connect("clicked", self._tune_down)
 
         # Add add / remove key buttons
-        VBox_add_rem = Gtk.VBox()
+        VBox_add_rem = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-        HBox_arrow = Gtk.HBox()
+        HBox_arrow = Gtk.Box()
         arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.UP, shadow_type=Gtk.ShadowType.OUT)
         HBox_arrow.pack_start(arrow, True, True, 0)
         arrow.show()
@@ -477,7 +563,7 @@ class Accordeur:
         HBox_arrow.show()
         self._button_add.show()
         
-        HBox_arrow = Gtk.HBox()
+        HBox_arrow = Gtk.Box()
         arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.DOWN, shadow_type=Gtk.ShadowType.OUT)
         HBox_arrow.pack_start(arrow, True, True, 0)
         arrow.show()
@@ -502,10 +588,9 @@ class Accordeur:
  
         # Settings horizontal box
         #########################
-        HBox_settings = Gtk.HBox(homogeneous=False, spacing=10)
 
         # Note style selector
-        VBox_notestyle = Gtk.VBox()
+        VBox_notestyle = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         label = Gtk.Label(label="Notation")
         label.set_alignment(0,1)
         VBox_notestyle.pack_start(label, False, True, 0)
@@ -527,7 +612,7 @@ class Accordeur:
         separator.show()
 
         # Beep length
-        VBox_beep_length= Gtk.VBox()
+        VBox_beep_length= Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         label = Gtk.Label(label="Durée (s)")
         label.set_alignment(0,1)
         VBox_beep_length.pack_start(label, False, True, 0)
@@ -551,7 +636,7 @@ class Accordeur:
         separator.show()
 
         # Note style selector
-        VBox_backend = Gtk.VBox()
+        VBox_backend = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         label = Gtk.Label(label="Sortie")
         label.set_alignment(0,1)
         VBox_backend.pack_start(label, False, True, 0)
@@ -571,12 +656,6 @@ class Accordeur:
         HBox_settings.pack_start(VBox_backend, False, True, 0)
         VBox_backend.show()
 
-
-        # Connexions
-        ############
-        self._reset_button.connect("clicked", self._reset_keys, HBox_keys)
-        self._stop_playback_button.connect("clicked", self._stop_playback)
- 
         # Show everything
         #################
         VBox.pack_start(HBox_controls, True, True, 0)
@@ -589,6 +668,9 @@ class Accordeur:
         self._window.add(VBox)
         self._window.show()
 
+        # Poll note queue
+        GObject.idle_add(self._play_note_from_queue)
+
 #########################################################################
 # main
 #########################################################################
@@ -597,6 +679,6 @@ def main():
     return 0       
 
 if __name__ == "__main__":
-    Accordeur()
+    Keyboard()
     main()
 
