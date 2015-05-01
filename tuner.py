@@ -1,17 +1,17 @@
 #!/usr/bin/env python
-# -*- coding: UTF8 -*-
+# -*- coding: UTF-8 -*-
 
 # ----------------------------------------------------------------------------
 # tuner.py
-# version 2.1
+# version 2.2
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
-# jerome (at jolimont.fr) wrote this file. As long as you retain this notice 
-# you can do whatever you want with this stuff. If we meet some day, and you 
-# think this stuff is worth it, you can buy me a beer in return.
-# Jérôme
+# <jerome@jolimont.fr> wrote this file. As long as you retain this notice you 
+# can do whatever you want with this stuff. If we meet some day, and you think 
+# this stuff is worth it, you can buy me a beer in return.
+# Jérôme Lafréchoux 
 # ----------------------------------------------------------------------------
 
 """This module creates a keyboard emitting notes to tune a music instrument
@@ -24,6 +24,7 @@ from subprocess import Popen
 from collections import deque
 from signal import SIGINT
 from textwrap import dedent
+import locale, gettext, os, sys
 
 class _Note():
 
@@ -137,14 +138,14 @@ class _NoteSelectionDialog(Gtk.Dialog):
         
         # Name
         renderer = Gtk.CellRendererText()
-        column = Gtk.TreeViewColumn("Note")
+        column = Gtk.TreeViewColumn(_("Note"))
         column.pack_start(renderer, True)
         column.add_attribute(renderer, "text", notestyle_index)
         self._tree.append_column(column)
 
         # Freq
         renderer = Gtk.CellRendererText()
-        column = Gtk.TreeViewColumn("Frequency", renderer, text=2)
+        column = Gtk.TreeViewColumn(_("Frequency"), renderer, text=2)
         self._tree.append_column(column)
         
         # Scroller
@@ -396,7 +397,7 @@ class _Key(Gtk.Box):
         """Select a note using the note selector widget."""
 
         # Create note selection dialog
-        note_selector = _NoteSelectionDialog("Select note", 
+        note_selector = _NoteSelectionDialog(_("Select note"), 
                                             self._index,
                                             self._notestyle)
         # If new freq selected
@@ -489,15 +490,22 @@ class Tuner:
     # Define backends
     _BEEP, _SOX_SINE, _SOX_PLUCK = range(3)
 
-    def __init__(self, default_keys=None):
+    def __init__(self, keys=None):
 
         """Initialize and display a keyboard
         
-        default_keys is an optional array of frequency indexes
+        keys is an optional array of frequency indexes
         
         """
 
-        self._default_keys = default_keys or []
+        # I18n
+        ######
+        # Using local path
+        local_path = os.path.abspath(os.path.dirname(sys.argv[0])) + "/locale"
+        gettext.install("tuner", local_path)
+        
+        # Create empty if no key specified
+        self._default_keys = keys or []
 
         # Variables
         ###########
@@ -526,7 +534,7 @@ class Tuner:
         ###############
         self._window = Gtk.Window()
         self._window.connect("destroy", self._close_request)
-        self._window.set_title("Tuner")
+        self._window.set_title(_("Tuner"))
         self._window.set_border_width(10)
 
         # Create vertical box and horizontal sub-boxes
@@ -658,15 +666,15 @@ class Tuner:
 
         # Note style selector
         vbox_notestyle = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        label = Gtk.Label(label="Notestyle")
+        label = Gtk.Label(label=_("Notestyle"))
         label.set_alignment(0, 1)
         vbox_notestyle.pack_start(label, False, True, 0)
         label.show()
-        button = Gtk.RadioButton.new_with_label_from_widget(None, "French")
+        button = Gtk.RadioButton.new_with_label_from_widget(None, _("French"))
         button.connect("clicked", self._set_notestyle, _Note.INDEX_FR_NAME)
         vbox_notestyle.pack_start(button, False, True, 0)
         button.show()
-        button = Gtk.RadioButton.new_with_label_from_widget(button, "English")
+        button = Gtk.RadioButton.new_with_label_from_widget(button, _("English"))
         button.connect("clicked", self._set_notestyle, _Note.INDEX_EN_NAME)
         vbox_notestyle.pack_start(button, False, True, 0)
         button.show()
@@ -680,7 +688,7 @@ class Tuner:
 
         # Beep length
         vbox_beep_length = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        label = Gtk.Label(label="Length (s)")
+        label = Gtk.Label(label=_("Length (s)"))
         label.set_alignment(0, 1)
         vbox_beep_length.pack_start(label, False, True, 0)
         label.show()
@@ -708,7 +716,7 @@ class Tuner:
 
         # Backend selector
         vbox_backend = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        label = Gtk.Label(label="Output")
+        label = Gtk.Label(label=_("Output"))
         label.set_alignment(0, 1)
         vbox_backend.pack_start(label, False, True, 0)
         label.show()
@@ -801,7 +809,7 @@ class Tuner:
             try:
                 self._beep_process.send_signal(SIGINT)
             except OSError:
-                print ("Could not SIGINT process")
+                print ("Could not SIGINT process.")
 
     def _missing_package_error(self, package):
         
@@ -815,22 +823,18 @@ class Tuner:
 
         # Error message
         if package == self._BEEP:
-            error_message = dedent("""\
-                Oops!  It seems beep is not installed. 
-                (http://johnath.com/beep/)
-                A package should be available for your distribution.
-                """)
+            error_message = _("Oops!  It seems beep is not installed.")
+            error_message += "\n(http://johnath.com/beep/)\n"
         elif (package == self._SOX_SINE) or (package == self._SOX_PLUCK):
-            error_message = dedent("""\
-                Oops!  It seems sox is not installed. 
-                (http://sox.sourceforge.net/)
-                A package should be available for your distribution.
-                """)
+            error_message = _("Oops!  It seems sox is not installed.")
+            error_message += "\n(http://sox.sourceforge.net/)\n"
+        error_message += _("A package should be available for your distribution.")
+
         # CLI
         print (error_message)
         
         # GUI
-        dialog = Gtk.Dialog(title="Missing program", \
+        dialog = Gtk.Dialog(title=_("Missing program"), \
                             parent=None, \
                             flags=Gtk.DialogFlags.MODAL, \
                             buttons=(Gtk.STOCK_DIALOG_ERROR, \
@@ -1054,7 +1058,7 @@ class Tuner:
                 try:
                     self._beep_process.send_signal(SIGINT)
                 except OSError:
-                    print ("Could not SIGINT process")
+                    print (_("Could not SIGINT process."))
                 # Wait for process to complete
                 else:
                     self._beep_process.wait()
