@@ -2,10 +2,11 @@
 # -*- coding: UTF8 -*-
 
 # tuner.py
-# version 1.5
+# version 1.6
 
 from gi.repository import Gtk, GObject
 from subprocess import Popen
+import signal, errno
 
 #########################################################################
 # class Key 
@@ -59,6 +60,7 @@ class Key(Gtk.VBox):
         if len(self.keys) - 1 == self._index :
             self._button_up.set_sensitive(False)
         self._button_down.set_sensitive(True)
+        self._accordeur.keys_modified()
         
     #####################################################################
     # Decrement freq
@@ -73,6 +75,7 @@ class Key(Gtk.VBox):
         if 0 == self._index:
             self._button_down.set_sensitive(False)
         self._button_up.set_sensitive(True)
+        self._accordeur.keys_modified()
         
     #####################################################################
     # Set label
@@ -182,16 +185,32 @@ class Accordeur:
             GObject.idle_add(self._poll_beep_in_progress)
 
     #####################################################################
+    # Stop playback
+    #####################################################################
+    def _stop_playback(self, widget):
+        self._beep_process.poll()
+        # If process still alive
+        if (None == self._beep_process.returncode):
+            # Send signal
+            try:
+                self._beep_process.send_signal(signal.SIGINT)
+            except OSError, e:
+                if e.errno == errno.ESRCH:
+                    pass      # process already dead
+                else:
+                    raise     # something else wrong - raise exception
+
+    #####################################################################
     # Missing package error
     #####################################################################
     def _missing_package_error(self, package):
         
         # CLI
         if self._BEEP == package:
-            print "Oops!  Apparemment, beep n'est pas installé. (http://johnath.com/beep/)"
+            print ("Oops!  Apparemment, beep n'est pas installé. (http://johnath.com/beep/)")
         elif (self._SOX_SINE == package) or (self._SOX_PLUCK == package):
-            print "Oops!  Apparemment, sox n'est pas installé. (http://sox.sourceforge.net/)"
-        print "Un paquet est sans doute disponible pour votre distribution."
+            print ("Oops!  Apparemment, sox n'est pas installé. (http://sox.sourceforge.net/)")
+        print ("Un paquet est sans doute disponible pour votre distribution.")
         
         # GUI
         if self._BEEP == package:
@@ -229,6 +248,7 @@ class Accordeur:
         hbox.pack_start(key, True, True, 0)
         self._buttons.append(key)
         self._button_rem.set_sensitive(True)
+        self._reset_button.set_sensitive(True)
 
     #####################################################################
     # Remove key
@@ -238,6 +258,7 @@ class Accordeur:
             self._buttons.pop().destroy()
         if 0 == len(self._buttons):
             self._button_rem.set_sensitive(False)
+        self._reset_button.set_sensitive(True)
         
     #####################################################################
     # Get note style
@@ -271,6 +292,7 @@ class Accordeur:
     def _tune_up (self, widget):
         for key in self._buttons:
             key.increment_freq(None)
+        self._reset_button.set_sensitive(True)
 
     #####################################################################
     # Tune down
@@ -278,20 +300,44 @@ class Accordeur:
     def _tune_down (self, widget):
         for key in self._buttons:
             key.decrement_freq(None)
+        self._reset_button.set_sensitive(True)
 
     #####################################################################
     # Disable buttons
     #####################################################################
     def _disable_buttons(self):
+        # Disable all keys
         for key in self._buttons:
             key.disable()
+        # Enable stop playback button
+        self._stop_playback_button.set_sensitive(True)
 
     #####################################################################
     # Enable buttons
     #####################################################################
     def _enable_buttons(self):
+        # Enable all keys
         for key in self._buttons:
             key.enable()
+        # Disable stop playback button
+        self._stop_playback_button.set_sensitive(False)
+
+    #####################################################################
+    # Reset keys
+    #####################################################################
+    def _reset_keys (self, widget, hbox):
+        for i in range(len(self._buttons)):
+            self._rem_key(widget)
+        default_key_indexes = [28, 33, 38, 43, 47, 52]
+        for i in range (6):
+            self._add_key(None, hbox, default_key_indexes[i], self._notestyle)
+        self._reset_button.set_sensitive(False)
+        
+    #####################################################################
+    # Keys modified
+    #####################################################################
+    def keys_modified (self):
+        self._reset_button.set_sensitive(True)
 
     #####################################################################
     # Poll beep in progress
@@ -302,6 +348,35 @@ class Accordeur:
             return True
         self._enable_buttons()
         return False
+
+    #####################################################################
+    # Close
+    #####################################################################
+    def _close (self, widget):
+        # If self._beep_process != 0, a subprocess was launched at some point
+        if (0 != self._beep_process):
+            print "process launched"
+            self._beep_process.poll()
+            # If process still alive
+            if (None == self._beep_process.returncode):
+                print "process stil alive"
+                # Send signal
+                try:
+                    self._beep_process.send_signal(signal.SIGINT)
+                except OSError, e:
+                    if e.errno == errno.ESRCH:
+                        print "errno"
+                        pass      # process already dead
+                    else:
+                        raise     # something else wrong - raise exception
+                # Wait for process to complete
+                else:
+                    print "signal sent"
+                    self._beep_process.wait()
+            else:
+                print "process already dead"
+        # Close application
+        Gtk.main_quit()
 
     #####################################################################
     # Init
@@ -325,13 +400,24 @@ class Accordeur:
         # Create window
         ###############
         self._window = Gtk.Window()
-        self._window.connect("destroy", Gtk.main_quit)
-        self._window.connect("destroy", Gtk.main_quit)
+        self._window.connect("destroy", self._close)
         self._window.set_title("Accordeur")
         self._window.set_border_width(10)
 
         # Create vertical box
         VBox = Gtk.VBox(homogeneous=False, spacing=10)
+
+        # Control horizontal box
+        #####################
+        HBox_controls = Gtk.HBox()
+        self._reset_button = Gtk.Button(stock=Gtk.STOCK_CANCEL)
+        self._reset_button.set_sensitive(False)
+        HBox_controls.pack_start(self._reset_button, False, True, 0)
+        self._reset_button.show()
+        self._stop_playback_button = Gtk.Button(stock=Gtk.STOCK_MEDIA_STOP)
+        HBox_controls.pack_end(self._stop_playback_button, False, True, 0)
+        self._stop_playback_button.set_sensitive(False)
+        self._stop_playback_button.show()
 
         # Keys horizontal box
         #####################
@@ -411,11 +497,8 @@ class Accordeur:
         self._button_add.connect("clicked", self._add_key, HBox_keys, 33, self._notestyle)
         self._button_rem.connect("clicked", self._rem_key)
 
-        # Add default keys
-        nb_keys = 6
-        default_key_indexes = [28, 33, 38, 43, 47, 52]
-        for i in range (nb_keys):
-            self._add_key(None, HBox_keys, default_key_indexes[i], self._notestyle)
+        # Set default keys
+        self._reset_keys(None, HBox_keys)
  
         # Settings horizontal box
         #########################
@@ -488,10 +571,18 @@ class Accordeur:
         HBox_settings.pack_start(VBox_backend, False, True, 0)
         VBox_backend.show()
 
+
+        # Connexions
+        ############
+        self._reset_button.connect("clicked", self._reset_keys, HBox_keys)
+        self._stop_playback_button.connect("clicked", self._stop_playback)
+ 
         # Show everything
         #################
+        VBox.pack_start(HBox_controls, True, True, 0)
         VBox.pack_start(HBox_keys, True, True, 0)
         VBox.pack_start(HBox_settings, True, True, 0)
+        HBox_controls.show()
         HBox_keys.show()
         HBox_settings.show()
         VBox.show()
