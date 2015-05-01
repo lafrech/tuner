@@ -2,17 +2,24 @@
 # -*- coding: UTF8 -*-
 
 # tuner.py
-# version 1.3
+# version 1.4
 
-import pygtk
-pygtk.require('2.0')
-import gtk, gobject
+# ToDo
+# reset keys
+# menu deroulant choix freq
+# kill beep si close
+# alsaaudio
+# play all
+# i18n
+# separer en modules
+
+from gi.repository import Gtk, GObject
 from subprocess import Popen
 
 #########################################################################
 # class Key 
 #########################################################################
-class Key(gtk.VBox):
+class Key(Gtk.VBox):
 
     keys = [["Do", "C", "32.7"], ["Do♯","C♯", "34.65"], ["Ré", "D", "36.71"],
             ["Ré♯","D♯", "38.89"], ["Mi", "E", "41.2"], ["Fa", "F", "43.65"],
@@ -108,39 +115,39 @@ class Key(gtk.VBox):
         self._accordeur = accordeur
         
         # Init VBox
-        gtk.VBox.__init__(self, spacing=5)
+        GObject.GObject.__init__(self, spacing=5)
 
         # Add up arrow
-        HBox_arrow = gtk.HBox()
-        arrow = gtk.Arrow(gtk.ARROW_UP, gtk.SHADOW_OUT)
-        HBox_arrow.pack_start(arrow)
+        HBox_arrow = Gtk.HBox()
+        arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.UP, shadow_type=Gtk.ShadowType.OUT)
+        HBox_arrow.pack_start(arrow, True, True, 0)
         arrow.show()
-        label = gtk.Label(u"\u266F")
-        HBox_arrow.pack_start(label)
+        label = Gtk.Label(label=u"\u266F")
+        HBox_arrow.pack_start(label, True, True, 0)
         label.show()
-        self._button_up = gtk.Button()
+        self._button_up = Gtk.Button()
         self._button_up.add(HBox_arrow)
-        self.pack_start(self._button_up, False)
+        self.pack_start(self._button_up, False, True, 0)
         HBox_arrow.show()
         self._button_up.show()
 
         # Add button
-        self._button = gtk.Button()
+        self._button = Gtk.Button()
         self._button.set_size_request(40, 40)
-        self.pack_start(self._button)
+        self.pack_start(self._button, True, True, 0)
         self._button.show()
 
         # Add down arrow
-        HBox_arrow = gtk.HBox()
-        arrow = gtk.Arrow(gtk.ARROW_DOWN, gtk.SHADOW_OUT)
-        HBox_arrow.pack_start(arrow)
+        HBox_arrow = Gtk.HBox()
+        arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.DOWN, shadow_type=Gtk.ShadowType.OUT)
+        HBox_arrow.pack_start(arrow, True, True, 0)
         arrow.show()
-        label = gtk.Label(u"\u266D")
-        HBox_arrow.pack_start(label)
+        label = Gtk.Label(label=u"\u266D")
+        HBox_arrow.pack_start(label, True, True, 0)
         label.show()
-        self._button_down = gtk.Button()
+        self._button_down = Gtk.Button()
         self._button_down.add(HBox_arrow)
-        self.pack_start(self._button_down, False)
+        self.pack_start(self._button_down, False, True, 0)
         HBox_arrow.show()
         self._button_down.show()
 
@@ -155,13 +162,10 @@ class Key(gtk.VBox):
         # Show
         self.show()
 
-
-
 #########################################################################
 # class Accordeur
 #########################################################################
 class Accordeur:
-
 
     #####################################################################
     # Play note
@@ -180,31 +184,31 @@ class Accordeur:
             print "Oops!  Apparemment, beep n'est pas installé. (http://johnath.com/beep/)"
             print "Un paquet est sans doute disponible pour votre distribution."
             # GUI
-            dialog = gtk.Dialog(title="beep n'est pas installé", \
+            dialog = Gtk.Dialog(title="beep n'est pas installé", \
                                 parent=None, \
-                                flags=gtk.DIALOG_MODAL, \
-                                buttons=(gtk.STOCK_DIALOG_ERROR, \
-                                gtk.RESPONSE_CLOSE))
+                                flags=Gtk.DialogFlags.MODAL, \
+                                buttons=(Gtk.STOCK_DIALOG_ERROR, \
+                                Gtk.ResponseType.CLOSE))
             error_message = "Oops!  Apparemment, beep n'est pas installé. " \
             + "(http://johnath.com/beep/)\n" \
             + "Un paquet est sans doute disponible pour votre distribution."
-            label = gtk.Label(error_message)
+            label = Gtk.Label(label=error_message)
             dialog.vbox.pack_start(label, True, True, 0)
             label.show()
             response = dialog.run()
-            if (gtk.RESPONSE_CLOSE == response or gtk.RESPONSE_DELETE_EVENT == response):
+            if (Gtk.ResponseType.CLOSE == response or Gtk.ResponseType.DELETE_EVENT == response):
                 dialog.destroy()
 
         # Set polling in idle to reconnect handles
         else:
-            gobject.idle_add(self._poll_beep_in_progress)
+            GObject.idle_add(self._poll_beep_in_progress)
 
     #####################################################################
     # Add key
     #####################################################################
     def _add_key(self, widget, hbox, index, notestyle):
         key = Key(index, notestyle, self)
-        hbox.pack_start(key)
+        hbox.pack_start(key, True, True, 0)
         self._buttons.append(key)
         self._button_rem.set_sensitive(True)
 
@@ -295,88 +299,89 @@ class Accordeur:
 
         # Create window
         ###############
-        self._window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-        self._window.connect("destroy", gtk.main_quit)
+        self._window = Gtk.Window()
+        self._window.connect("destroy", Gtk.main_quit)
+        self._window.connect("destroy", Gtk.main_quit)
         self._window.set_title("Accordeur")
         self._window.set_border_width(10)
 
         # Create vertical box
-        VBox = gtk.VBox(homogeneous=False, spacing=10)
+        VBox = Gtk.VBox(homogeneous=False, spacing=10)
 
         # Keys horizontal box
         #####################
-        HBox_keys = gtk.HBox()
+        HBox_keys = Gtk.HBox()
 
         # Add global incrementor / decrementor buttons
-        VBox_inc_dec = gtk.VBox()
+        VBox_inc_dec = Gtk.VBox()
 
-        HBox_arrow = gtk.HBox()
-        arrow = gtk.Arrow(gtk.ARROW_UP, gtk.SHADOW_OUT)
-        HBox_arrow.pack_start(arrow)
+        HBox_arrow = Gtk.HBox()
+        arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.UP, shadow_type=Gtk.ShadowType.OUT)
+        HBox_arrow.pack_start(arrow, True, True, 0)
         arrow.show()
-        label = gtk.Label(u"\u266F")
-        HBox_arrow.pack_start(label)
+        label = Gtk.Label(label=u"\u266F")
+        HBox_arrow.pack_start(label, True, True, 0)
         label.show()
-        self._button_up = gtk.Button()
+        self._button_up = Gtk.Button()
         self._button_up.add(HBox_arrow)
         self._button_up.set_size_request(40, -1)
-        VBox_inc_dec.pack_start(self._button_up, False)
+        VBox_inc_dec.pack_start(self._button_up, False, True, 0)
         HBox_arrow.show()
         self._button_up.show()
         
-        HBox_arrow = gtk.HBox()
-        arrow = gtk.Arrow(gtk.ARROW_DOWN, gtk.SHADOW_OUT)
-        HBox_arrow.pack_start(arrow)
+        HBox_arrow = Gtk.HBox()
+        arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.DOWN, shadow_type=Gtk.ShadowType.OUT)
+        HBox_arrow.pack_start(arrow, True, True, 0)
         arrow.show()
-        label = gtk.Label(u"\u266D")
-        HBox_arrow.pack_start(label)
+        label = Gtk.Label(label=u"\u266D")
+        HBox_arrow.pack_start(label, True, True, 0)
         label.show()
-        self._button_down = gtk.Button()
+        self._button_down = Gtk.Button()
         self._button_down.add(HBox_arrow)
         self._button_down.set_size_request(40, -1)
-        VBox_inc_dec.pack_end(self._button_down, False)
+        VBox_inc_dec.pack_end(self._button_down, False, True, 0)
         HBox_arrow.show()
         self._button_down.show()
 
         VBox_inc_dec.show()
-        HBox_keys.pack_start(VBox_inc_dec)
+        HBox_keys.pack_start(VBox_inc_dec, True, True, 0)
 
         self._button_up.connect("clicked", self._tune_up)
         self._button_down.connect("clicked", self._tune_down)
 
         # Add add / remove key buttons
-        VBox_add_rem = gtk.VBox()
+        VBox_add_rem = Gtk.VBox()
 
-        HBox_arrow = gtk.HBox()
-        arrow = gtk.Arrow(gtk.ARROW_UP, gtk.SHADOW_OUT)
-        HBox_arrow.pack_start(arrow)
+        HBox_arrow = Gtk.HBox()
+        arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.UP, shadow_type=Gtk.ShadowType.OUT)
+        HBox_arrow.pack_start(arrow, True, True, 0)
         arrow.show()
-        label = gtk.Label("+")
-        HBox_arrow.pack_start(label)
+        label = Gtk.Label(label="+")
+        HBox_arrow.pack_start(label, True, True, 0)
         label.show()
-        self._button_add = gtk.Button()
+        self._button_add = Gtk.Button()
         self._button_add.add(HBox_arrow)
         self._button_add.set_size_request(40, -1)
-        VBox_add_rem.pack_start(self._button_add, False)
+        VBox_add_rem.pack_start(self._button_add, False, True, 0)
         HBox_arrow.show()
         self._button_add.show()
         
-        HBox_arrow = gtk.HBox()
-        arrow = gtk.Arrow(gtk.ARROW_DOWN, gtk.SHADOW_OUT)
-        HBox_arrow.pack_start(arrow)
+        HBox_arrow = Gtk.HBox()
+        arrow = Gtk.Arrow(arrow_type=Gtk.ArrowType.DOWN, shadow_type=Gtk.ShadowType.OUT)
+        HBox_arrow.pack_start(arrow, True, True, 0)
         arrow.show()
-        label = gtk.Label("-")
-        HBox_arrow.pack_start(label)
+        label = Gtk.Label(label="-")
+        HBox_arrow.pack_start(label, True, True, 0)
         label.show()
-        self._button_rem = gtk.Button()
+        self._button_rem = Gtk.Button()
         self._button_rem.add(HBox_arrow)
         self._button_rem.set_size_request(40, -1)
-        VBox_add_rem.pack_end(self._button_rem, False)
+        VBox_add_rem.pack_end(self._button_rem, False, True, 0)
         HBox_arrow.show()
         self._button_rem.show()
 
         VBox_add_rem.show()
-        HBox_keys.pack_end(VBox_add_rem)
+        HBox_keys.pack_end(VBox_add_rem, True, True, 0)
 
         self._button_add.connect("clicked", self._add_key, HBox_keys, 33, self._notestyle)
         self._button_rem.connect("clicked", self._rem_key)
@@ -389,53 +394,53 @@ class Accordeur:
  
         # Settings horizontal box
         #########################
-        HBox_settings = gtk.HBox(homogeneous=False, spacing=10)
+        HBox_settings = Gtk.HBox(homogeneous=False, spacing=10)
 
         # Note style selector
-        VBox_notestyle = gtk.VBox()
-        label = gtk.Label("Notation")
+        VBox_notestyle = Gtk.VBox()
+        label = Gtk.Label(label="Notation")
         label.set_alignment(0,1)
-        VBox_notestyle.pack_start(label, expand=False)
+        VBox_notestyle.pack_start(label, False, True, 0)
         label.show()
-        button = gtk.RadioButton(None, "Française")
+        button = Gtk.RadioButton.new_with_label_from_widget(None, "Française")
         button.connect("clicked", self._change_notestyle, "French")
-        VBox_notestyle.pack_start(button, expand=False)
+        VBox_notestyle.pack_start(button, False, True, 0)
         button.show()
-        button = gtk.RadioButton(button, "Anglaise")
+        button = Gtk.RadioButton.new_with_label_from_widget(button, "Anglaise")
         button.connect("clicked", self._change_notestyle, "English")
-        VBox_notestyle.pack_start(button, expand=False)
+        VBox_notestyle.pack_start(button, False, True, 0)
         button.show()
-        HBox_settings.pack_start(VBox_notestyle, expand=False)
+        HBox_settings.pack_start(VBox_notestyle, False, True, 0)
         VBox_notestyle.show()
 
         # Separator
-        separator = gtk.VSeparator()
-        HBox_settings.pack_start(separator, expand=False)
+        separator = Gtk.VSeparator()
+        HBox_settings.pack_start(separator, False, True, 0)
         separator.show()
 
         # Beep length
-        VBox_beep_length= gtk.VBox()
-        label = gtk.Label("Durée (s)")
+        VBox_beep_length= Gtk.VBox()
+        label = Gtk.Label(label="Durée (s)")
         label.set_alignment(0,1)
-        VBox_beep_length.pack_start(label, expand=False)
+        VBox_beep_length.pack_start(label, False, True, 0)
         label.show()
-        beep_length_adj = gtk.Adjustment(value=self._beep_length, \
+        beep_length_adj = Gtk.Adjustment(value=self._beep_length, \
                                          lower=1, \
                                          upper=10, \
-                                         step_incr=0.5, \
-                                         page_incr=1, \
+                                         step_increment=0.5, \
+                                         page_increment=1, \
                                          page_size=0)
-        beep_length_spin = gtk.SpinButton(adjustment=beep_length_adj, climb_rate=0, digits=1)
+        beep_length_spin = Gtk.SpinButton(adjustment=beep_length_adj, climb_rate=0, digits=1)
         beep_length_adj.connect("value_changed", self._change_beep_length, beep_length_spin)
-        VBox_beep_length.pack_start(beep_length_spin, expand=False)
+        VBox_beep_length.pack_start(beep_length_spin, False, True, 0)
         beep_length_spin.show()
-        HBox_settings.pack_start(VBox_beep_length, expand=False)
+        HBox_settings.pack_start(VBox_beep_length, False, True, 0)
         VBox_beep_length.show()
 
         # Show everything
         #################
-        VBox.pack_start(HBox_keys)
-        VBox.pack_start(HBox_settings)
+        VBox.pack_start(HBox_keys, True, True, 0)
+        VBox.pack_start(HBox_settings, True, True, 0)
         HBox_keys.show()
         HBox_settings.show()
         VBox.show()
@@ -446,7 +451,7 @@ class Accordeur:
 # main
 #########################################################################
 def main():
-    gtk.main()
+    Gtk.main()
     return 0       
 
 if __name__ == "__main__":
