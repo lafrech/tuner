@@ -3,7 +3,7 @@
 
 # ----------------------------------------------------------------------------
 # tuner.py
-# version 2.2
+# version 2.3
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
@@ -22,8 +22,7 @@ Class Tuner creates a tuner : a keyboard and a few controls
 from gi.repository import Gtk, GObject, Gdk
 from subprocess import Popen
 from collections import deque
-from signal import SIGINT
-from textwrap import dedent
+from signal import signal, SIGINT
 import locale, gettext, os, sys
 
 class _Note():
@@ -534,6 +533,7 @@ class Tuner:
         ###############
         self._window = Gtk.Window()
         self._window.connect("destroy", self._close_request)
+        signal(SIGINT, self._close_request)
         self._window.set_title(_("Tuner"))
         self._window.set_border_width(10)
 

@@ -1,74 +1,74 @@
-# Tuner.
-# Copyright (C) 2012 Jérôme Lafréchoux
-# This file is distributed under the same license as the Tuner package.
-# Jérôme Lafréchoux <jerome@jolimont.fr>, 2012.
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: 2.2\n"
+"Project-Id-Version: 2.3\n"
 "Report-Msgid-Bugs-To: jerome@jolimont.fr\n"
-"POT-Creation-Date: 2012-02-03 15:54+0100\n"
+"POT-Creation-Date: 2012-03-13 18:03+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: tuner_v2_2.py:141
+#: tuner_v2_3.py:140
 msgid "Note"
 msgstr ""
 
-#: tuner_v2_2.py:148
+#: tuner_v2_3.py:147
 msgid "Frequency"
 msgstr ""
 
-#: tuner_v2_2.py:400
+#: tuner_v2_3.py:399
 msgid "Select note"
 msgstr ""
 
-#: tuner_v2_2.py:537
+#: tuner_v2_3.py:537
 msgid "Tuner"
 msgstr ""
 
-#: tuner_v2_2.py:669
+#: tuner_v2_3.py:669
 msgid "Notestyle"
 msgstr ""
 
-#: tuner_v2_2.py:673
+#: tuner_v2_3.py:673
 msgid "French"
 msgstr ""
 
-#: tuner_v2_2.py:677
+#: tuner_v2_3.py:677
 msgid "English"
 msgstr ""
 
-#: tuner_v2_2.py:691
+#: tuner_v2_3.py:691
 msgid "Length (s)"
 msgstr ""
 
-#: tuner_v2_2.py:719
+#: tuner_v2_3.py:719
 msgid "Output"
 msgstr ""
 
-#: tuner_v2_2.py:826
+#: tuner_v2_3.py:826
 msgid "Oops!  It seems beep is not installed."
 msgstr ""
 
-#: tuner_v2_2.py:829
+#: tuner_v2_3.py:829
 msgid "Oops!  It seems sox is not installed."
 msgstr ""
 
-#: tuner_v2_2.py:831
+#: tuner_v2_3.py:831
 msgid "A package should be available for your distribution."
 msgstr ""
 
-#: tuner_v2_2.py:837
+#: tuner_v2_3.py:837
 msgid "Missing program"
 msgstr ""
 
-#: tuner_v2_2.py:1061
+#: tuner_v2_3.py:1061
 msgid "Could not SIGINT process."
 msgstr ""
