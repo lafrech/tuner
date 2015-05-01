@@ -7,6 +7,8 @@ Tuner just emits sounds. It does not process the soundcard input to assess the t
 
 Tuner does not aim at being actually useful. I wrote it as an exercise to learn python and GTK. I use it. Sometimes.
 
+![Tuner](screenshot.png)
+
 ## Features
 
 Playback through internal speaker or via soundcard output.
