@@ -1,74 +1,73 @@
-# French translations for Tuner package.
-# Copyright (C) 2012 Jérôme Lafréchoux 
-# This file is distributed under the same license as the Tuner package.
-# Jerome <jerome@jolimont.fr>, 2012.
+# Language =fr translations for 2.4 package.
+# Copyright (C) 2015 THE 2.4'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the 2.4 package.
+# Jerome <jerome@jolimont.fr>, 2015.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: 2.3\n"
+"Project-Id-Version: 2.4\n"
 "Report-Msgid-Bugs-To: jerome@jolimont.fr\n"
-"POT-Creation-Date: 2012-03-13 18:03+0100\n"
-"PO-Revision-Date: 2012-02-03 11:40+0100\n"
+"POT-Creation-Date: 2015-05-01 22:37+0200\n"
+"PO-Revision-Date: 2015-05-01 22:39+0200\n"
 "Last-Translator: Jerome <jerome@jolimont.fr>\n"
-"Language-Team: French\n"
-"Language: fr\n"
+"Language-Team: Language =fr\n"
+"Language: =fr_FR\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: tuner_v2_3.py:140
+#: tuner.py:140
 msgid "Note"
 msgstr "Note"
 
-#: tuner_v2_3.py:147
+#: tuner.py:147
 msgid "Frequency"
 msgstr "Fréquence"
 
-#: tuner_v2_3.py:399
+#: tuner.py:399
 msgid "Select note"
 msgstr "Sélectionnez une note"
 
-#: tuner_v2_3.py:537
+#: tuner.py:537
 msgid "Tuner"
 msgstr "Accordeur"
 
-#: tuner_v2_3.py:669
+#: tuner.py:669
 msgid "Notestyle"
 msgstr "Notation"
 
-#: tuner_v2_3.py:673
+#: tuner.py:673
 msgid "French"
 msgstr "Française"
 
-#: tuner_v2_3.py:677
+#: tuner.py:677
 msgid "English"
 msgstr "Anglaise"
 
-#: tuner_v2_3.py:691
+#: tuner.py:691
 msgid "Length (s)"
 msgstr "Durée (s)"
 
-#: tuner_v2_3.py:719
+#: tuner.py:719
 msgid "Output"
 msgstr "Sortie"
 
-#: tuner_v2_3.py:826
+#: tuner.py:826
 msgid "Oops!  It seems beep is not installed."
 msgstr "Oops! On dirait bien que beep n'est pas installé."
 
-#: tuner_v2_3.py:829
+#: tuner.py:829
 msgid "Oops!  It seems sox is not installed."
 msgstr "Oops! On dirait bien que sox n'est pas installé."
 
-#: tuner_v2_3.py:831
+#: tuner.py:831
 msgid "A package should be available for your distribution."
 msgstr "Un paquet devrait exister pour votre distribution."
 
-#: tuner_v2_3.py:837
+#: tuner.py:837
 msgid "Missing program"
 msgstr "Programme manquant"
 
-#: tuner_v2_3.py:1061
+#: tuner.py:1061
 msgid "Could not SIGINT process."
 msgstr "Le process n'a pas pu être interrompu."
