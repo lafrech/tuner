@@ -19,11 +19,17 @@
 Class Tuner creates a tuner : a keyboard and a few controls
 """
 
-from gi.repository import Gtk, GObject, Gdk
 from subprocess import Popen
 from collections import deque
 from signal import signal, SIGINT
 import locale, gettext, os, sys
+
+import gi
+
+gi.require_version('Gtk', '3.0')
+
+from gi.repository import Gtk, GObject, Gdk
+
 
 class _Note():
 
