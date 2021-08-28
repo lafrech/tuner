@@ -29,7 +29,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 
-from gi.repository import Gtk, GObject, Gdk  # noqa
+from gi.repository import Gtk, GObject, Gdk, GLib  # noqa
 
 
 class _Note:
@@ -270,8 +270,9 @@ class _Key(Gtk.Box):
     """
 
     __gsignals__ = {
-        "play": (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, (str,)),
-        "frequency-changed": (GObject.SIGNAL_RUN_LAST, GObject.TYPE_NONE, ()),
+        "play": (GObject.SignalFlags.RUN_LAST, GObject.TYPE_NONE, (str,)),
+        "frequency-changed": (
+            GObject.SignalFlags.RUN_LAST, GObject.TYPE_NONE, ()),
     }
 
     def __init__(self, index, notestyle, tuner):
@@ -691,7 +692,7 @@ class Tuner:
         # Note style selector
         vbox_notestyle = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         label = Gtk.Label(label=_("Notestyle"))
-        label.set_alignment(0, 1)
+        label.set_xalign(0)
         vbox_notestyle.pack_start(label, False, True, 0)
         label.show()
         button = Gtk.RadioButton.new_with_label_from_widget(None, _("French"))
@@ -714,7 +715,7 @@ class Tuner:
         # Beep length
         vbox_beep_length = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         label = Gtk.Label(label=_("Length (s)"))
-        label.set_alignment(0, 1)
+        label.set_xalign(0)
         vbox_beep_length.pack_start(label, False, True, 0)
         label.show()
         beep_length_adj = Gtk.Adjustment(
@@ -744,7 +745,7 @@ class Tuner:
         # Backend selector
         vbox_backend = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         label = Gtk.Label(label=_("Output"))
-        label.set_alignment(0, 1)
+        label.set_xalign(0)
         vbox_backend.pack_start(label, False, True, 0)
         label.show()
         button = Gtk.RadioButton.new_with_label_from_widget(
@@ -777,7 +778,7 @@ class Tuner:
         self._window.show()
 
         # Poll note queue
-        GObject.idle_add(self._play_note_from_queue)
+        GLib.idle_add(self._play_note_from_queue)
 
     def _play_note(self, freq):
         """Play a note.
@@ -830,11 +831,11 @@ class Tuner:
         # Set polling in idle to re-enable buttons when done
         else:
             self._note_playing = True
-            GObject.idle_add(self._poll_beep_in_progress)
+            GLib.idle_add(self._poll_beep_in_progress)
 
     def _stop_playback_request(self, *args):
         """Ask for playback stop in main loop to avoid race conditions."""
-        GObject.idle_add(self._stop_playback)
+        GLib.idle_add(self._stop_playback)
 
     def _stop_playback(self):
         """Clear queue and interrupt playback. Called from main loop."""
@@ -1053,7 +1054,7 @@ class Tuner:
 
     def _close_request(self, *args):
         """Ask for application close in main loop to avoid race conditions."""
-        GObject.idle_add(self._close)
+        GLib.idle_add(self._close)
 
     def _close(self):
         """Interrupt playback before closing application.
