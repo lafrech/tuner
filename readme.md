@@ -36,7 +36,7 @@ It is distributed under the terms of the beer-ware licence:
 
 Tuner runs on linux and depends on:
 
-* [Python](https://www.python.org/) 2.7. (It may work with 2.4+).
+* [Python](https://www.python.org/) 3.
 * [PyGObject](https://wiki.gnome.org/action/show/Projects/PyGObject) 3.0+ (python-gi).
 * One of the two supported backends:
   * [beep](https://github.com/johnath/beep) >= [e1320c1](https://github.com/johnath/beep/commits/e1320c1da52ca92aa68b4224f9532982184fbe00) for the internal speaker playback.
